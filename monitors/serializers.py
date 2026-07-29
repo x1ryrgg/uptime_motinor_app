@@ -11,7 +11,6 @@ class CheckResultSerializer(serializers.ModelSerializer):
             'id',
             'checked_at',
             'status_code',
-            'response_time_ms',
             'is_success',
             'response_time_ms',
             'error_message'
@@ -42,7 +41,11 @@ class MonitorSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'is_currently_up', 'created_at', 'updated_at', 'last_check')
 
     def get_last_check(self, obj):
-        last_result = obj.check_results.first()
+        if hasattr(obj, 'prefetched_last_checks'):
+            last_result = obj.prefetched_last_checks[0] if obj.prefetched_last_checks else None
+        else:
+            last_result = obj.check_results.first()
+            
         if last_result:
             return CheckResultSerializer(last_result).data
         return None

@@ -4,14 +4,15 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
+
+class HTTPMethod(models.TextChoices):
+    GET = "GET", "GET"
+    POST = "POST", "POST"
+    HEAD = "HEAD", "HEAD"
+    OPTIONS = "OPTIONS  ", "OPTIONS"
+
 class Monitor(models.Model):
     """Модель сайта/эндпоинта, который мы мониторим."""
-
-    class HTTPMethod(models.TextChoices):
-        GET = "GET", "GET"
-        POST = "POST", "POST"
-        HEAD = "HEAD", "HEAD"
-        OPTIONS = "OPTIONS  ", "OPTIONS"
 
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="monitors", verbose_name="Владелец"
