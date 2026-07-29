@@ -219,7 +219,6 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Uptime Monitor API',
     'DESCRIPTION': 'API сервиса мониторинга доступности сайтов и уведомлений об инцидентах',
@@ -227,19 +226,20 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
 
-    # 1. Объявляем схему аутентификации для Swagger
-    'SECURITY_DEFINITIONS': {
-        'BearerAuth': {
-            'type': 'http',
-            'scheme': 'bearer',
-            'bearerFormat': 'JWT',
-        }
-    },
-    # 2. Применяем её ко всем ручкам по умолчанию
-    'SECURITY': [{'BearerAuth': []}],
-
     'SWAGGER_UI_SETTINGS': {
         'deepLinking': True,
         'persistAuthorization': True,  # Сохраняет токен при перезагрузке страницы
     },
+
+    # Описание схемы OpenAPI 3.0:
+    'APPEND_COMPONENTS': {
+        'securitySchemes': {
+            'BearerAuth': {
+                'type': 'http',
+                'scheme': 'bearer',
+                'bearerFormat': 'JWT',
+            }
+        }
+    },
+    'SECURITY': [{'BearerAuth': []}],
 }
