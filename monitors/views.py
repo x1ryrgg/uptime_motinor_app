@@ -16,12 +16,12 @@ class MonitorViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        latest_checks = CheckResult.objects.order_by('-last_check')
+        latest_checks = CheckResult.objects.order_by('-checked_at')
 
         return (Monitor.objects.filter(user=self.request.user)
                 .select_related('user')
                 .prefetch_related(Prefetch('check_results', queryset=latest_checks, to_attr='prefetched_last_checks'))
-                )
+                .order_by('-id'))
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

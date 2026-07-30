@@ -45,7 +45,25 @@ class MonitorSerializer(serializers.ModelSerializer):
             last_result = obj.prefetched_last_checks[0] if obj.prefetched_last_checks else None
         else:
             last_result = obj.check_results.first()
-            
+
         if last_result:
             return CheckResultSerializer(last_result).data
         return None
+
+
+class OnlyMonitorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Monitor
+        fields = (
+            'id',
+            'name',
+            'url',
+            'method',
+            'interval_seconds',
+            'expected_status_code',
+            'expected_keyword',
+            'is_active',
+            'is_currently_up',
+            'created_at',
+            'updated_at'
+        )
