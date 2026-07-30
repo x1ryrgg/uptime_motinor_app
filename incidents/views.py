@@ -19,3 +19,6 @@ class IncidentsViewSet(ModelViewSet):
 
 
 # Нужно прописать логику создания Incidents при постоянном падении ошибки при нескольких интерацих относительно interval_seconds
+
+
+

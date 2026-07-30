@@ -4,7 +4,6 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
-
 class HTTPMethod(models.TextChoices):
     GET = "GET", "GET"
     POST = "POST", "POST"
@@ -28,6 +27,9 @@ class Monitor(models.Model):
     # Интервал проверки в секундах
     interval_seconds = models.PositiveIntegerField(
         default=60, verbose_name="Интервал проверки (сек)"
+    )
+    consecutive_failures = models.PositiveIntegerField(
+        default=0, verbose_name="Сбоев подряд"
     )
     # Ожидаемые параметры успешного ответа
     expected_status_code = models.PositiveSmallIntegerField(
