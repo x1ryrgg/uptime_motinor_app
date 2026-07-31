@@ -19,13 +19,12 @@ class CheckResultSerializer(serializers.ModelSerializer):
 
 class MonitorSerializer(serializers.ModelSerializer):
     last_check = serializers.SerializerMethodField()
-    user_email = serializers.ReadOnlyField(source="user.email")
 
     class Meta:
         model = Monitor
         fields = (
             "id",
-            "user_email",
+            "user_id",
             "name",
             "url",
             "method",

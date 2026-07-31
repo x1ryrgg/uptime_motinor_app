@@ -19,8 +19,7 @@ class MonitorViewSet(ModelViewSet):
         latest_checks = CheckResult.objects.order_by("-checked_at")
 
         return (
-            Monitor.objects.filter(user=self.request.user)
-            .select_related("user")
+            Monitor.objects.filter(user_id=self.request.user.id)
             .prefetch_related(
                 Prefetch(
                     "check_results",
@@ -32,7 +31,7 @@ class MonitorViewSet(ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save(user_id=self.request.user.id)
 
     @action(detail=True, methods=["get"], url_path="history")
     def history(self, request, pk=None):

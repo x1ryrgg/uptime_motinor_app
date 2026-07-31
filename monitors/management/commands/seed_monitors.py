@@ -1,12 +1,10 @@
 import random
 from datetime import timedelta
 from django.core.management.base import BaseCommand
-from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from monitors.models import Monitor, CheckResult, HTTPMethod
 
-User = get_user_model()
 
 
 class Command(BaseCommand):
@@ -25,7 +23,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.WARNING("Начинаем генерацию тестовых данных..."))
 
-        user = User.objects.get(username="root")
+        user = 1 # поменять
 
         self.stdout.write(
             self.style.SUCCESS(

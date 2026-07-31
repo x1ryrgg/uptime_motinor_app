@@ -8,15 +8,13 @@ class HTTPMethod(models.TextChoices):
     GET = "GET", "GET"
     POST = "POST", "POST"
     HEAD = "HEAD", "HEAD"
-    OPTIONS = "OPTIONS  ", "OPTIONS"
+    OPTIONS = "OPTIONS", "OPTIONS"
 
 
 class Monitor(models.Model):
     """Модель сайта/эндпоинта, который мы мониторим."""
 
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="monitors", verbose_name="Владелец"
-    )
+    user_id = models.BigIntegerField(db_index=True, verbose_name="ID Владельца")
     name = models.CharField(max_length=255, verbose_name="Название сервиса")
     url = models.URLField(verbose_name="URL для проверки")
     method = models.CharField(

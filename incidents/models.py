@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from monitors.models import Monitor
+
 
 
 class IncidentStatus(models.TextChoices):
@@ -13,14 +13,7 @@ class IncidentStatus(models.TextChoices):
 class Incidents(models.Model):
     """Модель аварии/даунтайма сайта"""
 
-    monitor = models.ForeignKey(
-        Monitor,
-        on_delete=models.CASCADE,
-        related_name="incidents",
-        verbose_name="Monitor ID",
-        null=False,
-        blank=False,
-    )
+    monitor_id = models.BigIntegerField(db_index=True, verbose_name="ID Мониторинга")
     status = models.CharField(
         max_length=20,
         choices=IncidentStatus.choices,
