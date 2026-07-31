@@ -10,6 +10,7 @@ class HTTPMethod(models.TextChoices):
     HEAD = "HEAD", "HEAD"
     OPTIONS = "OPTIONS  ", "OPTIONS"
 
+
 class Monitor(models.Model):
     """Модель сайта/эндпоинта, который мы мониторим."""
 

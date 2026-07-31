@@ -25,9 +25,13 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.WARNING("Начинаем генерацию тестовых данных..."))
 
-        user = User.objects.get(username='root')
+        user = User.objects.get(username="root")
 
-        self.stdout.write(self.style.SUCCESS("Используется существующий пользователь: root@example.com"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Используется существующий пользователь: root@example.com"
+            )
+        )
 
         # 2. Набор тестовых сайтов
         test_services = [
@@ -106,8 +110,14 @@ class Command(BaseCommand):
                     # Редкий случай случайной ошибки (5% шанса)
                     is_success = random.random() > 0.05
                     status_code = 200 if is_success else random.choice([500, 502, 503])
-                    response_time = random.randint(40, 250) if is_success else random.randint(800, 2500)
-                    error_msg = None if is_success else f"Сервер вернул ошибку {status_code}"
+                    response_time = (
+                        random.randint(40, 250)
+                        if is_success
+                        else random.randint(800, 2500)
+                    )
+                    error_msg = (
+                        None if is_success else f"Сервер вернул ошибку {status_code}"
+                    )
                 else:
                     is_success = False
                     status_code = 500 if "httpbin" in monitor.url else None
@@ -133,4 +143,6 @@ class Command(BaseCommand):
             CheckResult.objects.bulk_create(check_results_to_create)
             self.stdout.write(f" Добавлено {checks_count} записей проверок в историю.")
 
-        self.stdout.write(self.style.SUCCESS("🎉 Заполнение тестовыми данными успешно завершено!"))
+        self.stdout.write(
+            self.style.SUCCESS("🎉 Заполнение тестовыми данными успешно завершено!")
+        )

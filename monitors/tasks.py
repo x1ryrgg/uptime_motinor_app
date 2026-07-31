@@ -6,17 +6,16 @@ from datetime import timedelta
 
 from incidents.services import process_incident_logic
 from user_support.models import User
-from.models import Monitor
+from .models import Monitor
 from .services import execute_monitor_check
 from celery.utils.log import get_task_logger
-
 
 logger = get_task_logger(__name__)
 
 
 @shared_task
 def run_single_monitor_task(monitor_id):
-    """ Задача для запроса по одному мониторингу """
+    """Задача для запроса по одному мониторингу"""
     logger.info(f"[run_single_monitor_task] Запуск проверки монитора ID: {monitor_id}")
 
     try:
@@ -69,5 +68,7 @@ def run_scheduled_monitoring_tasks():
     for monitor in active_monitors:
         last_check = monitor.check_results.first()
 
-        if not last_check or (now - last_check.checked_at) >= timedelta(seconds=monitor.interval_seconds):
+        if not last_check or (now - last_check.checked_at) >= timedelta(
+            seconds=monitor.interval_seconds
+        ):
             run_single_monitor_task.delay(monitor.pk)

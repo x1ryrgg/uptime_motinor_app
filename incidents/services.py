@@ -1,16 +1,16 @@
 import pandas as pd
 from typing import List
-from celery.utils.log import get_task_logger
+import logging
 
 from .getters import get_failure_threshold
 from .models import Incidents, IncidentStatus
 from monitors.models import Monitor, CheckResult
-from monitors.tasks import logger
 
+logger = logging.getLogger(__name__)
 
 
 def process_incident_logic(monitor: Monitor, current_result: CheckResult):
-    """ Проверка последних результатов и создание/закрытие Инцидентов """
+    """Проверка последних результатов и создание/закрытие Инцидентов"""
     open_incident = monitor.incidents.filter(status=IncidentStatus.OPEN).first()
 
     if current_result.is_success:

@@ -8,18 +8,18 @@ class IncidentSerializer(serializers.ModelSerializer):
     monitor = serializers.PrimaryKeyRelatedField(
         queryset=Monitor.objects.all(), write_only=True
     )
-    monitor_info = OnlyMonitorSerializer(source='monitor', read_only=True)
+    monitor_info = OnlyMonitorSerializer(source="monitor", read_only=True)
 
     class Meta:
         model = Incidents
         fields = (
-            'id',
-            'monitor',
-            'status',
-            'started_at',
-            'resolved_at',
-            'duration_seconds',
-            'cause',
-            'monitor_info',
+            "id",
+            "monitor",
+            "status",
+            "started_at",
+            "resolved_at",
+            "duration_seconds",
+            "cause",
+            "monitor_info",
         )
-        read_only_fields = ('id', 'started_at', 'duration_seconds')
+        read_only_fields = ("id", "started_at", "duration_seconds")
