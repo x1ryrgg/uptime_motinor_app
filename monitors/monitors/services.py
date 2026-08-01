@@ -47,7 +47,7 @@ async def execute_monitor_check(monitor: Monitor) -> CheckResult:
     except httpx.RequestError as exc:
         error_message = f"Ошибка сети: {str(exc)}"
     except Exception as exc:
-        error_message = f"Неизвестная ошибка: {str(exc)}"
+        error_message = f"[execute_monitor_check] Неизвестная ошибка: {str(exc)}"
 
     # Считаем время выполнения в миллисекундах
     response_time_ms = int((time.perf_counter() - start_time) * 1000)

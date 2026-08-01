@@ -4,7 +4,6 @@ import logging
 
 from .getters import get_failure_threshold
 from .models import Incidents, IncidentStatus
-from monitors.models import Monitor, CheckResult
 
 logger = logging.getLogger(__name__)
 
