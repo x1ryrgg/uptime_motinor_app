@@ -30,7 +30,7 @@ def process_incident_logic(monitor: Monitor, current_result: CheckResult):
         monitor.consecutive_failures += 1
         threshold = get_failure_threshold(interval_seconds=monitor.interval_seconds)
         logger.warning(
-            f"⚠[CHECK FAILED] Монитор #{monitor.id} ({monitor.url}) недоступен. "
+            f"[CHECK FAILED] Монитор #{monitor.id} ({monitor.url}) недоступен. "
             f"Сбой {monitor.consecutive_failures}/{threshold}. Причина: {current_result.error_message}"
         )
 
@@ -41,6 +41,6 @@ def process_incident_logic(monitor: Monitor, current_result: CheckResult):
                 cause=current_result.error_message or "Неизвестная ошибка сервера",
             )
             logger.error(
-                f"🚨 [INCIDENT CREATED] Создан новый инцидент #{incident.pk} для монитора #{monitor.pk} ({monitor.url}). "
+                f"[INCIDENT CREATED] Создан новый инцидент #{incident.pk} для монитора #{monitor.pk} ({monitor.url}). "
                 f"Порог сбоев ({threshold}) достигнут."
             )
