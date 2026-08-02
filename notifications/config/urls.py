@@ -22,12 +22,19 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from rest_framework.routers import DefaultRouter
+from notifications.views import NotificationsViewSet
+
+notification_router = DefaultRouter()
+notification_router.register(r"", NotificationsViewSet, basename="notifications")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
 
+    path("notifications/", include(notification_router.urls)),
+
     # --- OpenAPI 3 & Swagger / Redoc ---
-    path("api/user_support/v1/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("api/user_support/v1/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui",),
-    path("api/user_support/v1/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc",),
+    path("api/notifications/v1/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/notifications/v1/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui",),
+    path("api/notifications/v1/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc",),
 ]
