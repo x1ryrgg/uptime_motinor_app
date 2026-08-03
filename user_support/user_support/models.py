@@ -6,6 +6,7 @@ class User(AbstractUser):
     telegram_chat_id = models.CharField(
         max_length=100, blank=True, null=True, verbose_name="Telegram Chat ID"
     )
+    phone_number = models.CharField(max_length=20, blank=True, null=True, verbose_name="Номер телефона")
 
     class Meta:
         verbose_name = "User"
@@ -25,7 +26,10 @@ class UserSettings(models.Model):
         default=True, verbose_name="Email Notification Enabled"
     )
     telegram_notification_enabled = models.BooleanField(
-        default=True, verbose_name="Telegram Notification Enabled"
+        default=False, verbose_name="Telegram Notification Enabled"
+    )
+    sms_notification_enabled = models.BooleanField(
+        default=False, verbose_name="Sms Motification Enabled"
     )
 
     class Meta:

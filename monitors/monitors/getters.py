@@ -7,6 +7,15 @@ from django.db.models import QuerySet
 from .models import Monitor, CheckResult, HTTPMethod
 
 
+def get_success_threshold(interval_seconds: int) -> float:
+    """Определяет, сколько сбоев подряд нужно для открытия инцидента"""
+    if interval_seconds <= 60:
+        return 20
+    elif interval_seconds <= 300:
+        return 10
+    return 5
+
+
 def get_active_monitors(
     monitor_ids: List[int] = None, in_dataframe: bool = False
 ) -> Monitor:

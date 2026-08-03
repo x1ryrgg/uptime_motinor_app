@@ -17,7 +17,9 @@ dependencies = [
     "django-filter (>=26.1,<27.0)",
     "drf-spectacular (>=0.30.0,<0.31.0)",
     "python-dotenv (>=1.2.2,<2.0.0)",
-    "nplusone (>=1.0.0,<2.0.0)"
+    "nplusone (>=1.0.0,<2.0.0)",
+    "grpcio (>=1.83.0,<2.0.0)",
+    "grpcio-tools (>=1.83.0,<2.0.0)"
 ]
 
 [tool.poetry]

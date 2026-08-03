@@ -39,8 +39,10 @@ def run_single_monitor_task(monitor_id):
                     f"[Monitor #{monitor.pk} - {monitor.name}] Сброс счетчика ошибок с {monitor.consecutive_failures} до 0."
                 )
                 monitor.consecutive_failures = 0
+            monitor.consecutive_successes += 1
             monitor.is_currently_up = True
         else:
+            monitor.consecutive_successes = 0
             monitor.consecutive_failures += 1
             monitor.is_currently_up = False
 

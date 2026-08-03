@@ -14,6 +14,7 @@ class Incidents(models.Model):
     """Модель аварии/даунтайма сайта"""
 
     monitor_id = models.BigIntegerField(db_index=True, verbose_name="ID Мониторинга")
+    user_id = models.BigIntegerField(db_index=True, blank=True, null=True, verbose_name='ID User-а')
     status = models.CharField(
         max_length=20,
         choices=IncidentStatus.choices,
@@ -35,7 +36,7 @@ class Incidents(models.Model):
         ordering = ["-started_at"]
 
     def __str__(self):
-        return f"Incident #{self.pk} on monitor {self.monitor.name}, [{self.status}]"
+        return f"Incident #{self.pk} on monitor #{self.monitor_id}, [{self.status}]"
 
     @property
     def duration_seconds(self) -> int | None:

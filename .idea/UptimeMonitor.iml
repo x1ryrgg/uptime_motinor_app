@@ -13,7 +13,11 @@
       <excludeFolder url="file://$MODULE_DIR$/notifications/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/user_support/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.13 (UptimeMonitor)" jdkType="Python SDK" />
+    <content url="file://$MODULE_DIR$/incidents/.venv/Scripts" />
+    <content url="file://$MODULE_DIR$/monitors/.venv/Scripts" />
+    <content url="file://$MODULE_DIR$/notifications/.venv/Scripts" />
+    <content url="file://$MODULE_DIR$/user_support/.venv/Scripts" />
+    <orderEntry type="jdk" jdkName="notifications" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

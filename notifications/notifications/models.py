@@ -5,7 +5,6 @@ class NotificationReceiver(models.TextChoices):
     EMAIL = "email"
     TELEGRAM = "telegram"
     SMS = "sms"
-    ALL = "all"
 
 class NotificationType(models.TextChoices):
     INFO = "info"
@@ -17,11 +16,15 @@ class Notifications(models.Model):
     receiver_type = models.CharField(max_length=20,
                                      choices=NotificationReceiver.choices,
                                      default=NotificationReceiver.EMAIL,
-                                     null=False, db_index=True)
+                                     db_index=True)
     type = models.CharField(max_length=20,
                             choices=NotificationType.choices,
                             default=NotificationType.INFO,
-                            null=False, db_index=True)
+                            db_index=True)
+    title = models.CharField(max_length=255, verbose_name="Заголовок/Тема")
+    message = models.TextField(verbose_name="Текст сообщения")
+    is_sent = models.BooleanField(default=False, verbose_name="Отправлено")
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -29,5 +32,4 @@ class Notifications(models.Model):
         verbose_name_plural = "Уведомления"
 
     def __str__(self):
-        return (f"Message to user_id: {self.user_id} | Receiver {self.receiver_type} and type: {self.type} | "
-                f"created_at: {self.created_at}")
+        return f"[{self.type}] to user #{self.user_id} via {self.receiver_type} (Sent: {self.is_sent})"

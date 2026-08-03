@@ -30,6 +30,9 @@ class Monitor(models.Model):
     consecutive_failures = models.PositiveIntegerField(
         default=0, verbose_name="Сбоев подряд"
     )
+    consecutive_successes = models.PositiveIntegerField(
+        default=0, verbose_name="Корректных отработок подряд"
+    )
     # Ожидаемые параметры успешного ответа
     expected_status_code = models.PositiveSmallIntegerField(
         default=200, verbose_name="Ожидаемый HTTP статус"

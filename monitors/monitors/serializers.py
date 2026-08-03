@@ -31,6 +31,8 @@ class MonitorSerializer(serializers.ModelSerializer):
             "interval_seconds",
             "expected_status_code",
             "expected_keyword",
+            'consecutive_failures',
+            'consecutive_successes',
             "is_active",
             "is_currently_up",
             "created_at",
@@ -43,6 +45,8 @@ class MonitorSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "last_check",
+            'consecutive_failures',
+            'consecutive_successes',
         )
 
     def get_last_check(self, obj):
@@ -57,20 +61,3 @@ class MonitorSerializer(serializers.ModelSerializer):
             return CheckResultSerializer(last_result).data
         return None
 
-
-class OnlyMonitorSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Monitor
-        fields = (
-            "id",
-            "name",
-            "url",
-            "method",
-            "interval_seconds",
-            "expected_status_code",
-            "expected_keyword",
-            "is_active",
-            "is_currently_up",
-            "created_at",
-            "updated_at",
-        )

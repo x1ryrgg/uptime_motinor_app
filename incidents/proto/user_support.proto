@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package user_support;
+
+
+service UserService {
+  // Метод принимает UserRequest и возвращает UserSettingsResponse
+  rpc GetUserNotificationSettings (UserRequest) returns (UserSettingsResponse);
+}
+
+// Сообщение-запрос: передаем ID пользователя
+message UserRequest {
+  int64 user_id = 1;
+}
+
+// Сообщение-ответ: возвращаем контакты и флаги настроек
+message UserSettingsResponse {
+  int64 user_id = 1;
+  string email = 2;
+  string telegram_chat_id = 3;
+  string phone_number = 4;
+  bool email_enabled = 5;
+  bool telegram_enabled = 6;
+  bool sms_enabled = 7;
+}
