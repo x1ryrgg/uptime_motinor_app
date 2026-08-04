@@ -1,12 +1,13 @@
 import logging
 import grpc
+import os
 
 from proto import user_support_pb2, user_support_pb2_grpc
 
 logger = logging.getLogger("incidents")
 
 # Адрес и порт запущенного gRPC-сервера user_support
-USER_SUPPORT_GRPC_HOST = "localhost:50051"
+USER_SUPPORT_GRPC_HOST = os.getenv("USER_SUPPORT_GRPC_HOST", "localhost:50051")
 
 
 def get_user_settings_via_grpc(user_id: int) -> dict | None:

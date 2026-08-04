@@ -1,0 +1,258 @@
+services:
+  # ==========================================
+  # ИНФРАСТРУКТУРА
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: uptime_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Скрипт автоматического создания 4-х отдельных баз данных
+      - ./init-multiple-dbs.sql:/docker-entrypoint-initdb.d/init-multiple-dbs.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: uptime_redis
+    restart: always
+    ports:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: uptime_rabbitmq
+    restart: always
+    ports:
+      - "5672"
+      - "15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # МИКРОСЕРВИС: USER_SUPPORT
+  # ==========================================
+  user_support_web:
+    build:
+      context: ./user_support
+    container_name: user_support_web
+    env_file:
+      - ./user_support/.env
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8001"
+    ports:
+      - "8001:8001"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  user_support_grpc:
+    build:
+      context: ./user_support
+    container_name: user_support_grpc
+    env_file:
+      - ./user_support/.env
+    command: python grpc_server.py
+    ports:
+      - "50051:50051"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ==========================================
+  # МИКРОСЕРВИС: MONITORS
+  # ==========================================
+  monitors_web:
+    build:
+      context: ./monitors
+    container_name: monitors_web
+    env_file:
+      - ./monitors/.env
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8002"
+    ports:
+      - "8002:8002"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_CACHE_URL=redis://redis:6379/1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  monitors_beat:
+    build:
+      context: ./monitors
+    container_name: monitors_beat
+    env_file:
+      - ./monitors/.env
+    command: celery -A config beat -l info
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  monitors_worker:
+    build:
+      context: ./monitors
+    container_name: monitors_worker
+    env_file:
+      - ./monitors/.env
+    command: celery -A config worker -l info -Q monitors_queue,celery
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ==========================================
+  # МИКРОСЕРВИС: INCIDENTS
+  # ==========================================
+  incidents_web:
+    build:
+      context: ./incidents
+    container_name: incidents_web
+    env_file:
+      - ./incidents/.env
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8003"
+    ports:
+      - "8003:8003"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - CELERY_BROKER_URL=amqp://guest:$guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_CACHE_URL=redis://redis:6379/1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  incidents_worker:
+    build:
+      context: ./incidents
+    container_name: incidents_worker
+    env_file:
+      - ./incidents/.env
+    command: celery -A config worker -l info -Q incidents_queue
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - USER_SUPPORT_GRPC_HOST=user_support_grpc:50051
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      user_support_grpc:
+        condition: service_started
+
+  # ==========================================
+  # МИКРОСЕРВИС: NOTIFICATIONS
+  # ==========================================
+  notifications_web:
+    build:
+      context: ./notifications
+    container_name: notifications_web
+    env_file:
+      - ./notifications/.env
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8004"
+    ports:
+      - "8004:8004"
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - CELERY_BROKER_URL=amqp://guest:$guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_CACHE_URL=redis://redis:6379/1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notifications_worker:
+    build:
+      context: ./notifications
+    container_name: notifications_worker
+    env_file:
+      - ./notifications/.env
+    command: celery -A config worker -l info -Q notifications_queue
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

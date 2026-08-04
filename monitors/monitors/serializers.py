@@ -41,6 +41,7 @@ class MonitorSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            'user_id',
             "is_currently_up",
             "created_at",
             "updated_at",
