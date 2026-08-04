@@ -33,3 +33,8 @@ class Notifications(models.Model):
 
     def __str__(self):
         return f"[{self.type}] to user #{self.user_id} via {self.receiver_type} (Sent: {self.is_sent})"
+
+    def complete(self):
+        """ Вспомогательный метод для закрытия сообщения """
+        self.is_sent = True
+        self.save(update_fields=["is_sent"])

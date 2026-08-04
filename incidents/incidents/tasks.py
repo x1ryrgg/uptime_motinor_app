@@ -15,35 +15,29 @@ def dispatch_notifications(user_id: int, notification_type: str, title: str, mes
         logger.error(f"[dispatch_notifications] Не удалось получить данные пользователя #{user_id}")
         return
 
-    # 1. Отправляем Email (если включено и есть email)
-    if user_data.get("email_enabled") and user_data.get("email"):
-        current_app.send_task(
-            "notifications.tasks.send_incident_notification",
-            kwargs={
-                "user_id": user_id,
-                "receiver_type": "email",
-                "notification_type": notification_type,
-                "target": user_data["email"],
-                "title": title,
-                "message": message,
-            },
-            queue="notifications_queue",
-        )
+    CHANNELS = [
+        ("email", "email_enabled", "email"),
+        ("telegram_chat_id", "telegram_enabled", "telegram"),
+        ("phone_number", "sms_enabled", "sms"),
+    ]
 
-    # 2. Отправляем Telegram (если включено и есть telegram_chat_id)
-    if user_data.get("telegram_enabled") and user_data.get("telegram_chat_id"):
-        current_app.send_task(
-            "notifications.tasks.send_incident_notification",
-            kwargs={
-                "user_id": user_id,
-                "receiver_type": "telegram",
-                "notification_type": notification_type,
-                "target": user_data["telegram_chat_id"],
-                "title": title,
-                "message": message,
-            },
-            queue="notifications_queue",
-        )
+    for target_field, enabled_field, receiver_type in CHANNELS:
+        target = user_data.get(target_field)
+        is_enabled = user_data.get(enabled_field)
+
+        if is_enabled and target:
+            current_app.send_task(
+                "notifications.tasks.send_incident_notification",
+                kwargs={
+                    "user_id": user_id,
+                    "receiver_type": receiver_type,
+                    "notification_type": notification_type,
+                    "target": target,
+                    "title": title,
+                    "message": message,
+                },
+                queue="notifications_queue",
+            )
 
 @shared_task(name='incidents.tasks.process_check_result_event')
 def process_incident_task(

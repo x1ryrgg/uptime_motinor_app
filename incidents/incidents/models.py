@@ -50,4 +50,4 @@ class Incidents(models.Model):
         """Вспомогательный метод для закрытия инцидента"""
         self.status = IncidentStatus.RESOLVED
         self.resolved_at = timezone.now()
-        self.save()
+        self.save(update_fields=["status", "resolved_at"])

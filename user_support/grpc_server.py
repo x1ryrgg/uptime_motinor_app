@@ -1,4 +1,3 @@
-# grpc_server.py
 import os
 import sys
 import time

@@ -1,4 +1,6 @@
 import logging
+import traceback
+
 import requests
 import ssl
 import certifi
@@ -12,7 +14,7 @@ logger = logging.getLogger('notifications')
 
 
 class BaseNotificationSender(ABC):
-    """ Отправка сообщения о событии """
+    """ Контракт отправки сообщения о событии """
 
     @abstractmethod
     def send(self, title: str, message: str, target: str) -> bool:
@@ -21,7 +23,7 @@ class BaseNotificationSender(ABC):
 
 
 class EmailSender(BaseNotificationSender):
-    """Отправка писем через SMTP (Mail.ru)"""
+    """Отправка писем через SMTP """
 
     def send(self, title: str, message: str, target: str) -> bool:
         try:
@@ -34,7 +36,7 @@ class EmailSender(BaseNotificationSender):
             )
             return True
         except Exception as e:
-            logger.error(f"[EmailSender] Ошибка отправки письма на {target}: {e}")
+            logger.error(f"[EmailSender] Ошибка отправки письма на {target}: {e} | {traceback.format_exc()}")
             return False
 
 
@@ -44,7 +46,6 @@ class TgSender(BaseNotificationSender):
     def send(self, title: str, message: str, target: str) -> bool:
         url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
 
-        # Формируем красивое форматирование с заголовком и текстом
         formatted_message = f"<b>{title}</b>\n\n{message}"
 
         payload = {
@@ -54,7 +55,7 @@ class TgSender(BaseNotificationSender):
         }
 
         try:
-            response = requests.post(url, json=payload, timeout=5)
+            response = requests.post(url, json=payload, timeout=10)
             if response.status_code == 200:
                 return True
             logger.error(f"[TgSender] Ошибка TG API. Статус: {response.status_code}, Ответ: {response.text}")
@@ -64,13 +65,100 @@ class TgSender(BaseNotificationSender):
             return False
 
 
+class BaseNotifySaver(ABC):
+    """ Контракт сохранения сообщения и его статуса """
+
+    @abstractmethod
+    def create_notification(self, user_id: int,
+                            notification_type: str,
+                            title: str,
+                            message: str,) -> Notifications | None:
+        pass
+
+    @abstractmethod
+    def mark_as_sent(self, notification: Notifications):
+        pass
+
+
+class EmailSaver(BaseNotifySaver):
+    """ Сохранение email сообщений """
+
+    def create_notification(self, user_id: int, notification_type: str, title: str, message: str) -> Notifications | None:
+        try:
+            return Notifications.objects.create(
+                user_id=user_id,
+                receiver_type=NotificationReceiver.EMAIL,
+                type=notification_type,
+                title=title,
+                message=message,
+                is_sent=False,
+            )
+        except Exception as e:
+            logger.error(f"[EmailSaver] Ошибка сохранения: {e}")
+            return None
+
+    def mark_as_sent(self, notification: Notifications):
+        notification.complete()
+
+
+class TgSaver(BaseNotifySaver):
+    """ Сохранение tg сообщений """
+
+    def create_notification(self, user_id: int, notification_type: str, title: str, message: str) -> Notifications | None:
+        try:
+            return Notifications.objects.create(
+                user_id=user_id,
+                receiver_type=NotificationReceiver.TELEGRAM,
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                is_sent=False
+            )
+        except Exception as e:
+            logger.error(f"[TgSaver] Ошибка сохранения: {e}")
+            return None
+
+    def mark_as_sent(self, notification: Notifications):
+        notification.complete()
+
+
+class NotificationChannel:
+    """Связывает Sender и Saver для одного типа канала"""
+
+    def __init__(self, sender: BaseNotificationSender, saver: BaseNotifySaver):
+        self.sender = sender
+        self.saver = saver
+
+    def process(self, user_id: int, notification_type: str, title: str, message: str, target: str) -> Notifications | None:
+        # 1. Сохраняем черновик в БД
+        notification = self.saver.create_notification(
+            user_id=user_id,
+            notification_type=notification_type,
+            title=title,
+            message=message
+        )
+
+        if not notification:
+            return None
+
+        # 2. Отправляем
+        if self.sender.send(title=title, message=message, target=target):
+            # 3. При успехе меняем статус через Saver
+            self.saver.mark_as_sent(notification)
+            logger.info(f"[NotificationChannel] Уведомление #{notification.id} доставлено на {target}")
+        else:
+            logger.warning(f"[NotificationChannel] Ошибка доставки уведомления #{notification.id}")
+
+        return notification
+
+
 class NotificationService:
-    """ Единый сервис для создания записи в БД и координации отправки """
+    """"Единая точка входа для всех каналов уведомлений"""
 
     # Реестр доступных каналов отправки
-    SENDERS = {
-        NotificationReceiver.EMAIL: EmailSender(),
-        NotificationReceiver.TELEGRAM: TgSender(),
+    CHANNELS: dict[str, NotificationChannel] = {
+        NotificationReceiver.EMAIL: NotificationChannel(EmailSender(), EmailSaver()),
+        NotificationReceiver.TELEGRAM: NotificationChannel(TgSender(), TgSaver()),
     }
 
     @classmethod
@@ -81,37 +169,18 @@ class NotificationService:
         notification_type: str,
         title: str,
         message: str,
-        target: str,  # email адрес или chat_id Telegram
-    ) -> Notifications:
-        """
-        1. Создает запись уведомления в БД
-        2. Вызывает нужный класс отправки
-        3. Обновляет is_sent в случае успеха
-        """
-        # 1. Создаем уведомление со статусом is_sent=False
-        notification = Notifications.objects.create(
+        target: str,
+    ) -> Notifications | None:
+        channel = cls.CHANNELS.get(receiver_type)
+        if not channel:
+            logger.error(f"[NotificationService] Неизвестный тип получателя: {receiver_type}")
+            return None
+
+            # Передаем всю работу соответствующему каналу
+        return channel.process(
             user_id=user_id,
-            receiver_type=receiver_type,
-            type=notification_type,
+            notification_type=notification_type,
             title=title,
             message=message,
-            is_sent=False,
+            target=target,
         )
-
-        sender = cls.SENDERS.get(receiver_type)
-        if not sender:
-            logger.error(f"[NotificationService] Неподдерживаемый тип получателя: {receiver_type}")
-            return notification
-
-        # 2. Пытаемся отправить
-        is_success = sender.send(title=title, message=message, target=target)
-
-        # 3. Фиксируем статус в БД
-        if is_success:
-            notification.is_sent = True
-            notification.save(update_fields=["is_sent"])
-            logger.info(f"[NotificationService] Уведомление #{notification.id} успешно отправлено via {receiver_type}")
-        else:
-            logger.warning(f"[NotificationService] Не удалось доставить уведомление #{notification.id}")
-
-        return notification

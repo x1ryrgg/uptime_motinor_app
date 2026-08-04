@@ -27,9 +27,11 @@ def get_user_settings_via_grpc(user_id: int) -> dict | None:
             return {
                 "user_id": response.user_id,
                 "email": response.email,
+                "phone_number": response.phone_number,
                 "telegram_chat_id": response.telegram_chat_id,
                 "email_enabled": response.email_enabled,
                 "telegram_enabled": response.telegram_enabled,
+                'sms_enabled': response.sms_enabled,
             }
 
     except grpc.RpcError as e:
