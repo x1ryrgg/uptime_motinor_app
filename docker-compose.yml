@@ -7,7 +7,7 @@ services:
     container_name: uptime_postgres
     restart: always
     environment:
-      POSTGRES_DB: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
@@ -66,9 +66,6 @@ services:
       - "8001:8001"
     environment:
       - DB_HOST=postgres
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
@@ -86,9 +83,6 @@ services:
       - "50051:50051"
     environment:
       - DB_HOST=postgres
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
@@ -109,9 +103,6 @@ services:
       - "8002:8002"
     environment:
       - DB_HOST=postgres
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - REDIS_CACHE_URL=redis://redis:6379/1
@@ -144,9 +135,6 @@ services:
     command: celery -A config worker -l info -Q monitors_queue,celery
     environment:
       - DB_HOST=postgres
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
@@ -173,10 +161,7 @@ services:
       - "8003:8003"
     environment:
       - DB_HOST=postgres
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
-      - CELERY_BROKER_URL=amqp://guest:$guest@rabbitmq:5672//
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - REDIS_CACHE_URL=redis://redis:6379/1
     depends_on:
@@ -194,10 +179,8 @@ services:
     command: celery -A config worker -l info -Q incidents_queue
     environment:
       - DB_HOST=postgres
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - USER_SUPPORT_GRPC_HOST=user_support_grpc:50051
     depends_on:
       postgres:
@@ -223,10 +206,7 @@ services:
       - "8004:8004"
     environment:
       - DB_HOST=postgres
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
-      - CELERY_BROKER_URL=amqp://guest:$guest@rabbitmq:5672//
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - REDIS_CACHE_URL=redis://redis:6379/1
     depends_on:
@@ -244,10 +224,8 @@ services:
     command: celery -A config worker -l info -Q notifications_queue
     environment:
       - DB_HOST=postgres
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       postgres:
         condition: service_healthy
