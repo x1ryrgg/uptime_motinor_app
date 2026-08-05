@@ -21,7 +21,7 @@
 
 Проект построен по принципам событийно-ориентированной микросервисной архитектуры (EDA) с полным разделением баз данных (**Database per Service**).
 
-![Database Schema](docs/uptimer_service_graphic.svg)
+[![Database Schema](docs/uptimer_service_graphic.svg)](docs/uptimer_service_graphic.svg)
 
 
 ### Разделение по сервисам
