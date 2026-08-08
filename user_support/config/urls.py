@@ -28,12 +28,21 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from user_support.views import RegisterUserView, ProfileView
+from user_support.views import (
+    RegisterUserView,
+    ProfileView,
+    DeactivateUserView,
+    GitHubLoginView,
+    UserListView
+)
 
 
 urlpatterns = [
     path("api/v1/register/", RegisterUserView.as_view(), name="register"),
+    path("api/v1/auth/github/", GitHubLoginView.as_view(), name="github_login"),
     path("api/v1/profile/", ProfileView.as_view(), name="profile"),
+    path("api/v1/profile/deactivate/", DeactivateUserView.as_view(), name="deactivate"),
+    path("api/v1/users/all/", UserListView.as_view(), name="all_users"),
 
     path('api/v1/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/v1/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

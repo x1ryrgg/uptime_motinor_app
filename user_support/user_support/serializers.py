@@ -1,4 +1,3 @@
-from django.contrib.sessions import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SerializerMethodField
 from rest_framework import serializers
@@ -32,6 +31,14 @@ class UserSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         UserSettings.objects.create(user=user)
         return user
+
+
+class LoginCodeSerializer(serializers.Serializer):
+    code = serializers.CharField(
+        write_only=True,
+        required=True,
+        help_text="Временный код авторизации (code), полученный от GitHub"
+    )
 
 
 class UserSettingsSerializer(serializers.ModelSerializer):
@@ -74,8 +81,25 @@ class PersonalUserSerializer(serializers.ModelSerializer):
 
            # Обновляем поля объекта UserSettings
            for attr, value in settings_data.items():
-               setattr(user_settings, attr, value)
+                setattr(user_settings, attr, value)
            user_settings.save()
 
        return instance
+
+
+class UserListSerializer(serializers.ModelSerializer):
+    settings = UserSettingsSerializer(read_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "phone_number",
+            "telegram_chat_id",
+            "is_active",
+            "is_superuser",
+            "settings"
+        )
 

@@ -12,7 +12,7 @@
 * **Async & Task Management:** Celery, Celery Beat
 * **Message Broker:** RabbitMQ
 * **Databases & Cache:** PostgreSQL (отдельная БД для каждого сервиса), Redis
-* **Auth:** JWT (JSON Web Tokens)
+* **Auth:** JWT (JSON Web Tokens), OAuth 
 * **DevOps & Containerization:** Docker, Docker Compose
 
 ---
@@ -29,7 +29,7 @@ graph TD
     classDef brokerStyle fill:#1e1029,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
 
     subgraph ClientLayer ["Client / External API"]
-        Client["SPA / Mobile / Postman<br/>(JWT Authentication)"]:::clientStyle
+        Client["SPA / Mobile / Postman<br/>(JWT Authentication)/OAuth"]:::clientStyle
     end
 
     subgraph Microservices ["Microservices Layer (Django / DRF)"]
