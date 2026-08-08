@@ -1,8 +1,19 @@
 import logging
-import grpc
 import os
+import sys
+import grpc
 
-from proto import user_support_pb2, user_support_pb2_grpc
+# 1. Динамически находим папку proto относительно текущего файла и добавляем в sys.path
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))  # .../incidents/incidents
+PROJECT_DIR = os.path.dirname(CURRENT_DIR)                 # .../incidents
+PROTO_DIR = os.path.join(PROJECT_DIR, "proto")            # .../incidents/proto
+
+if PROTO_DIR not in sys.path:
+    sys.path.append(PROTO_DIR)
+
+# 2. Прямые импорты (теперь import users_pb2 внутри users_pb2_grpc отработает
+import users_pb2
+import users_pb2_grpc
 
 logger = logging.getLogger("incidents")
 
@@ -15,10 +26,10 @@ def get_user_settings_via_grpc(user_id: int) -> dict | None:
     try:
         # Открываем канал связи с сервером
         with grpc.insecure_channel(USER_SUPPORT_GRPC_HOST) as channel:
-            stub = user_support_pb2_grpc.UserServiceStub(channel)
+            stub = users_pb2_grpc.UserServiceStub(channel)
 
             # Формируем запрос
-            request = user_support_pb2.UserRequest(user_id=user_id)
+            request = users_pb2.UserRequest(user_id=user_id)
 
             # Вызываем удаленный метод (RPC)
             response = stub.GetUserNotificationSettings(request, timeout=3.0)

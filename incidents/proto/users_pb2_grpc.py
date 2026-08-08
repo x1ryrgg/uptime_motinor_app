@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from . import user_support_pb2 as user__support__pb2
+import users_pb2 as users__pb2
 
 GRPC_GENERATED_VERSION = '1.83.0'
 GRPC_VERSION = grpc.__version__
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in user_support_pb2_grpc.py depends on'
+        + ' but the generated code in users_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -35,9 +35,9 @@ class UserServiceStub:
             channel: A grpc.Channel.
         """
         self.GetUserNotificationSettings = channel.unary_unary(
-                '/user_support.UserService/GetUserNotificationSettings',
-                request_serializer=user__support__pb2.UserRequest.SerializeToString,
-                response_deserializer=user__support__pb2.UserSettingsResponse.FromString,
+                '/users.UserService/GetUserNotificationSettings',
+                request_serializer=users__pb2.UserRequest.SerializeToString,
+                response_deserializer=users__pb2.UserSettingsResponse.FromString,
                 _registered_method=True)
 
 
@@ -56,14 +56,14 @@ def add_UserServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'GetUserNotificationSettings': grpc.unary_unary_rpc_method_handler(
                     servicer.GetUserNotificationSettings,
-                    request_deserializer=user__support__pb2.UserRequest.FromString,
-                    response_serializer=user__support__pb2.UserSettingsResponse.SerializeToString,
+                    request_deserializer=users__pb2.UserRequest.FromString,
+                    response_serializer=users__pb2.UserSettingsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'user_support.UserService', rpc_method_handlers)
+            'users.UserService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('user_support.UserService', rpc_method_handlers)
+    server.add_registered_method_handlers('users.UserService', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
@@ -84,9 +84,9 @@ class UserService:
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/user_support.UserService/GetUserNotificationSettings',
-            user__support__pb2.UserRequest.SerializeToString,
-            user__support__pb2.UserSettingsResponse.FromString,
+            '/users.UserService/GetUserNotificationSettings',
+            users__pb2.UserRequest.SerializeToString,
+            users__pb2.UserSettingsResponse.FromString,
             options,
             channel_credentials,
             insecure,

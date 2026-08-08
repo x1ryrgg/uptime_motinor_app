@@ -1,18 +1,24 @@
 import os
 import sys
-import time
 import logging
 from concurrent import futures
 import grpc
 
-# 1. Инициализация Django ORM перед запуском сервера
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROTO_DIR = os.path.join(BASE_DIR, "proto")
+
+# 1. Добавляем папку proto в sys.path
+if PROTO_DIR not in sys.path:
+    sys.path.append(PROTO_DIR)
+
+# 2. Инициализация Django ORM перед запуском сервера
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 import django
 django.setup()
 
-# 2. Импорты после инициализации Django
-from proto import user_support_pb2_grpc
-from user_support.grpc_service import UserGrpcService
+# 3. Прямые импорты после добавления в sys.path и настройки Django
+from proto import users_pb2_grpc
+from grpc_service import UserGrpcService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("grpc_server")
@@ -23,7 +29,7 @@ def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
 
     # Регистрируем наш сервис
-    user_support_pb2_grpc.add_UserServiceServicer_to_server(
+    users_pb2_grpc.add_UserServiceServicer_to_server(
         UserGrpcService(), server
     )
 

@@ -1,13 +1,13 @@
 import logging
 import grpc
-from .models import User, UserSettings
+from user_support.models import User, UserSettings
 
-from proto import user_support_pb2, user_support_pb2_grpc
+from proto import users_pb2_grpc, users_pb2
 
 logger = logging.getLogger("user_support")
 
 
-class UserGrpcService(user_support_pb2_grpc.UserServiceServicer):
+class UserGrpcService(users_pb2_grpc.UserServiceServicer):
     """ Реализация gRPC-сервиса для получения контактов пользователя """
 
     def GetUserNotificationSettings(self, request, context):
@@ -19,7 +19,7 @@ class UserGrpcService(user_support_pb2_grpc.UserServiceServicer):
             # Получаем настройки (или создаем дефолтные, если их вдруг нет)
             settings, _ = UserSettings.objects.get_or_create(user=user)
 
-            return user_support_pb2.UserSettingsResponse(
+            return users_pb2.UserSettingsResponse(
                 user_id=user.pk,
                 email=user.email or "",
                 telegram_chat_id=user.telegram_chat_id or "",
@@ -32,7 +32,7 @@ class UserGrpcService(user_support_pb2_grpc.UserServiceServicer):
         except User.DoesNotExist:
             logger.warning(f"[gRPC] Пользователь #{user_id} не найден в БД")
             # Можно вернуть пустые значения
-            return user_support_pb2.UserSettingsResponse(
+            return users_pb2.UserSettingsResponse(
                 user_id=user_id,
                 email="",
                 telegram_chat_id="",
@@ -45,4 +45,4 @@ class UserGrpcService(user_support_pb2_grpc.UserServiceServicer):
             logger.error(f"[gRPC] Ошибка обработки запроса для user_id={user_id}: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details("Internal server error")
-            return user_support_pb2.UserSettingsResponse()
+            return users_pb2.UserSettingsResponse()
