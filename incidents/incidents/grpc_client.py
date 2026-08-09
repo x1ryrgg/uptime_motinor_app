@@ -2,6 +2,9 @@ import logging
 import os
 import sys
 import grpc
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # 1. Динамически находим папку proto относительно текущего файла и добавляем в sys.path
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))  # .../incidents/incidents

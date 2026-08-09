@@ -7,22 +7,23 @@ import grpc
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROTO_DIR = os.path.join(BASE_DIR, "proto")
 
-# 1. Добавляем папку proto в sys.path
+# Добавляем папку proto в sys.path
 if PROTO_DIR not in sys.path:
     sys.path.append(PROTO_DIR)
 
-# 2. Инициализация Django ORM перед запуском сервера
+# Инициализация Django ORM перед запуском сервера
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 import django
 django.setup()
 
-# 3. Прямые импорты после добавления в sys.path и настройки Django
-from proto import users_pb2_grpc
+# Прямые импорты после добавления в sys.path и настройки Django
+import users_pb2_grpc
 from grpc_service import UserGrpcService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("grpc_server")
 
+PORT = os.getenv("PROBE_GRPC_PORT", "50051")
 
 def serve():
     # Создаем gRPC сервер с пулом воркеров (потоков)
@@ -33,11 +34,9 @@ def serve():
         UserGrpcService(), server
     )
 
-    # Настраиваем порт
-    port = "50051"
-    server.add_insecure_port(f"[::]:{port}")
+    server.add_insecure_port(f"[::]:{PORT}")
     server.start()
-    logger.info(f"🚀 gRPC Server запущен и слушает порт {port}...")
+    logger.info(f"🚀 gRPC Server запущен и слушает порт {PORT}...")
 
     try:
         server.wait_for_termination()

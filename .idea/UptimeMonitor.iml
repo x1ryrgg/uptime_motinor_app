@@ -7,17 +7,19 @@
       <sourceFolder url="file://$MODULE_DIR$/monitors" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/notifications" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/user_support" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/probes" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/incidents/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/monitors/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/notifications/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/user_support/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/probes/.venv" />
     </content>
     <content url="file://$MODULE_DIR$/incidents/.venv/Scripts" />
     <content url="file://$MODULE_DIR$/monitors/.venv/Scripts" />
     <content url="file://$MODULE_DIR$/notifications/.venv/Scripts" />
     <content url="file://$MODULE_DIR$/user_support/.venv/Scripts" />
-    <orderEntry type="jdk" jdkName="incidents" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="probes" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

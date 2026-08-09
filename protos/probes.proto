@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package probe;
+
+// Сервис-агент для выполнения сетевых проверок
+service ProbeService {
+  // Выполнить одиночную HTTP/HTTPS проверку
+  rpc ExecuteCheck (ProbeCheckRequest) returns (ProbeCheckResponse);
+}
+
+// Запрос от сервиса monitors к агенту probes
+message ProbeCheckRequest {
+  int64 monitor_id = 1;              // ID монитора в БД
+  string url = 2;                    // Target URL
+  string method = 3;                 // HTTP метод (GET, POST, etc.)
+  int32 expected_status_code = 4;    // Ожидаемый статус-код (например, 200)
+  optional string expected_keyword = 5; // Ожидаемый текст на странице (опционально)
+  float timeout_seconds = 6;         // Таймаут запроса в секундах (по умолчанию 10.0)
+}
+
+// Ответ от агента probes в сервис monitors
+message ProbeCheckResponse {
+  int64 monitor_id = 1;              // ID монитора
+  int32 status_code = 2;             // Фактический статус-код (0, если ошибка сети/таймаут)
+  int32 response_time_ms = 3;        // Время отклика в миллисекундах
+  bool is_success = 4;               // Итоговый флаг успеха
+  string error_message = 5;          // Текст ошибки (пустая строка, если is_success == true)
+  string probe_id = 6;               // Идентификатор узла/агента, выполнившего проверку
+}

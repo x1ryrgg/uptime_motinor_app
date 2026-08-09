@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from .models import Monitor, CheckResult
-from .services import execute_monitor_check
+from .services import execute_monitor_check, execute_monitor_check_local
 from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
