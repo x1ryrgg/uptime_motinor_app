@@ -106,6 +106,7 @@ services:
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - REDIS_CACHE_URL=redis://redis:6379/1
+      - PROBES_GRPC_HOST=probes_grpc:50052
     depends_on:
       postgres:
         condition: service_healthy
@@ -144,6 +145,22 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  # ==========================================
+  # МИКРОСЕРВИС: PROBES
+  # ==========================================
+  probes_grpc:
+    build:
+      context: ./probes
+    container_name: probes_grpc
+    env_file:
+      - ./probes/.env
+    command: python grpc_server.py
+    ports:
+      - "50052:50052"
+    environment:
+      - PROBE_GRPC_PORT=50052
+      - PROBE_ID=docker_probe_1
 
   # ==========================================
   # МИКРОСЕРВИС: INCIDENTS
