@@ -25,14 +25,15 @@
 graph TD
     classDef clientStyle fill:#0d0e12,stroke:#4a5568,stroke-width:2px,color:#f8fafc;
     classDef serviceStyle fill:#16192b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
+    classDef probeStyle fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
     classDef dbStyle fill:#0f172a,stroke:#0ea5e9,stroke-width:2px,color:#f8fafc;
     classDef brokerStyle fill:#1e1029,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
 
     subgraph ClientLayer ["Client / External API"]
-        Client["SPA / Mobile / Postman<br/>(JWT Authentication)/OAuth"]:::clientStyle
+        Client["SPA / Mobile / Postman<br/>(JWT Authentication / OAuth)"]:::clientStyle
     end
 
-    subgraph Microservices ["Microservices Layer (Django / DRF)"]
+    subgraph Microservices ["Microservices Layer"]
         subgraph UserSupportGroup ["user_support"]
             US_WEB["user_support_web<br/>:8001 (Auth & Users)"]:::serviceStyle
             US_GRPC["user_support_grpc<br/>:50051 (gRPC Server)"]:::serviceStyle
@@ -41,7 +42,11 @@ graph TD
         subgraph MonitorsGroup ["monitors"]
             M_WEB["monitors_web<br/>:8002 (CRUD Monitors)"]:::serviceStyle
             M_BEAT["monitors_beat<br/>(Periodic Schedule)"]:::serviceStyle
-            M_WORKER["monitors_worker<br/>(HTTP Check Tasks)"]:::serviceStyle
+            M_WORKER["monitors_worker<br/>(Check Orchestrator)"]:::serviceStyle
+        end
+
+        subgraph ProbesGroup ["probes"]
+            P_GRPC["probes_grpc<br/>:50052 (Async gRPC Agent)"]:::probeStyle
         end
 
         subgraph IncidentsGroup ["incidents"]
@@ -82,7 +87,11 @@ graph TD
 
     M_BEAT -->|"Trigger Checks"| RabbitMQ
     RabbitMQ -->|"Fetch Task"| M_WORKER
-    M_WORKER -->|"Result / Latency"| Redis
+
+    M_WORKER ==>|"1. Primary: gRPC Check Request"| P_GRPC
+    P_GRPC -->|"Execute Async HTTP/HTTPS Check"| TargetSites[("External Web Resources")]:::clientStyle
+    P_GRPC ==>|"Return Response Metrics"| M_WORKER
+    M_WORKER -.->"2. Fallback: Local HTTP Check (If Probes Down)"| TargetSites
 
     M_WORKER -->|"Publish Failure/Recovery Event"| RabbitMQ
     RabbitMQ -->|"incidents_queue"| INC_WORKER
