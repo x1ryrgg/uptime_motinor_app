@@ -91,7 +91,7 @@ graph TD
     M_WORKER ==>|"1. Primary: gRPC Check Request"| P_GRPC
     P_GRPC -->|"Execute Async HTTP/HTTPS Check"| TargetSites[("External Web Resources")]:::clientStyle
     P_GRPC ==>|"Return Response Metrics"| M_WORKER
-    M_WORKER -.->"2. Fallback: Local HTTP Check (If Probes Down)"| TargetSites
+    M_WORKER -. "2. Fallback: Local HTTP Check (If Probes Down)" .-> TargetSites
 
     M_WORKER -->|"Publish Failure/Recovery Event"| RabbitMQ
     RabbitMQ -->|"incidents_queue"| INC_WORKER
