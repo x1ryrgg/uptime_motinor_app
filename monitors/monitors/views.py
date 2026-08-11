@@ -1,5 +1,6 @@
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 
 from .serializers import CheckResultSerializer, MonitorSerializer
 from rest_framework.decorators import action
@@ -7,6 +8,10 @@ from rest_framework.response import Response
 from .models import Monitor, CheckResult
 from rest_framework.viewsets import ModelViewSet
 from django.db.models import Prefetch
+
+from .services import execute_monitor_check
+from .tasks import run_single_monitor_task
+from .throttling import BurstManualCheckThrottle, DailyManualCheckThrottle
 
 
 class MonitorViewSet(ModelViewSet):
@@ -43,3 +48,15 @@ class MonitorViewSet(ModelViewSet):
         results = monitor.check_results.all()[:100]
         serializer = CheckResultSerializer(results, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+    @action(detail=True, methods=["post"], url_path='manual',
+            throttle_classes=[BurstManualCheckThrottle, DailyManualCheckThrottle])
+    def manual_check(self, request, pk=None):
+        monitor = self.get_object()
+        run_single_monitor_task.delay(monitor_id=monitor.pk)
+
+        return Response(
+            {"detail": f"Ручная проверка монитора #{monitor.pk} запущена."},
+            status=status.HTTP_202_ACCEPTED,
+        )
