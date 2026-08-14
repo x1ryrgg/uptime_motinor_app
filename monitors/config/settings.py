@@ -182,8 +182,8 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     "DEFAULT_THROTTLE_RATES": {
-            "manual_check_burst": "10/300s",
-            "manual_check_daily": "1000/day",
+            "manual_check_burst": "2/m",
+            "manual_check_daily": "1000/d",
         },
 }
 

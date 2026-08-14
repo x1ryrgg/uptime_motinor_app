@@ -15,7 +15,7 @@ import probes_pb2
 import probes_pb2_grpc
 from src.checkers.http_checker import execute_http_check
 
-logger = logging.getLogger("probes.grpc_service")
+logger = logging.getLogger(__name__)
 
 # Идентификатор текущей ноды агента (например: fra1, msk1 или default_probe)
 PROBE_ID = os.getenv("PROBE_ID", "default_probe")

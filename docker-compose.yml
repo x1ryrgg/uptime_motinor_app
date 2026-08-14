@@ -60,7 +60,8 @@ services:
     env_file:
       - ./user_support/.env
     command: >
-      sh -c "python manage.py migrate &&
+      sh -c "until python -c 'import socket, time; s = socket.socket(); s.connect((\"postgres\", 5432))' 2>/dev/null; do echo 'Waiting for Postgres...'; sleep 1; done;
+             python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8001"
     ports:
       - "8001:8001"
@@ -138,6 +139,7 @@ services:
       - DB_HOST=postgres
       - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - PROBES_GRPC_HOST=probes_grpc:50052
     depends_on:
       postgres:
         condition: service_healthy
@@ -152,15 +154,22 @@ services:
   probes_grpc:
     build:
       context: ./probes
-    container_name: probes_grpc
+    # container_name: probes_grpc  - Убираем жесткое имя для масштабирования
     env_file:
       - ./probes/.env
     command: python grpc_server.py
-    ports:
-      - "50052:50052"
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    # ports:
+    #  - "50052:50052"
     environment:
       - PROBE_GRPC_PORT=50052
       - PROBE_ID=docker_probe_1
+      - PYTHONUNBUFFERED=1
+    deploy:
+      replicas: 2
 
   # ==========================================
   # МИКРОСЕРВИС: INCIDENTS

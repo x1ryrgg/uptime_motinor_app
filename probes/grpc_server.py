@@ -19,10 +19,12 @@ if BASE_DIR not in sys.path:
 
 import probes_pb2_grpc
 from src.grpc_service import ProbeGrpcService
+from src.checkers.http_checker import http_client, execute_http_check
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger("probes.server")
 
@@ -30,7 +32,10 @@ PORT = os.getenv("PROBE_GRPC_PORT", "50052")
 
 
 async def serve():
-    server = grpc.aio.server()
+    options = [
+        ("grpc.max_concurrent_streams", 10000),  # Макс. параллельных стримов/запросов
+    ]
+    server = grpc.aio.server(options=options)
 
     # Регистрируем сервис
     probes_pb2_grpc.add_ProbeServiceServicer_to_server(
@@ -48,10 +53,13 @@ async def serve():
     except asyncio.CancelledError:
         logger.info("Остановка gRPC сервера...")
         await server.stop(0)
+    finally:
+        # Корректно закрываем HTTP-клиент и все сокеты при выключении
+        await http_client.aclose()
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(serve())
     except KeyboardInterrupt:
-        logger.info("Сервер остановлен комбинацией Ctrl+C")
+        logger.info("Сервер остановлен")

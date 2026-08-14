@@ -21,7 +21,7 @@ import probes_pb2_grpc
 logger = logging.getLogger("monitors")
 
 # Хост и порт gRPC-сервера probes
-PROBES_GRPC_HOST = os.getenv("PROBES_GRPC_HOST", "localhost:50052")
+PROBES_GRPC_HOST = os.getenv("PROBES_GRPC_HOST", )
 
 
 async def execute_probe_check_via_grpc(
