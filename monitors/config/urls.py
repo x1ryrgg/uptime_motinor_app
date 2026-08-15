@@ -23,7 +23,7 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 from rest_framework.routers import DefaultRouter
-from monitors.views import MonitorViewSet
+from monitors.views import MonitorViewSet, ManualCheckView
 
 
 
@@ -33,7 +33,8 @@ monitoring_router.register(r"", MonitorViewSet, basename="monitor")
 urlpatterns = [
     path("admin/", admin.site.urls),
 
-    path("monitoring/", include(monitoring_router.urls)),
+    path("api/v1/monitoring/", include(monitoring_router.urls)),
+    path("api/v1/monitoring/{id}/manual/", ManualCheckView.as_view(), name="manual"),
 
     # --- OpenAPI 3 & Swagger / Redoc ---
     path('api/monitors/v1/schema/', SpectacularAPIView.as_view(), name='schema'),

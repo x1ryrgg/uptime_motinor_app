@@ -1,4 +1,5 @@
 from rest_framework import status
+from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -18,7 +19,7 @@ class MonitorViewSet(ModelViewSet):
     """CRUD для работы с мониторингом пользователя"""
 
     serializer_class = MonitorSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated, )
 
     def get_queryset(self):
         latest_checks = CheckResult.objects.order_by("-checked_at")
@@ -50,11 +51,19 @@ class MonitorViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-    @action(detail=True, methods=["post"], url_path='manual',
-            throttle_classes=[BurstManualCheckThrottle, DailyManualCheckThrottle])
-    def manual_check(self, request, pk=None):
-        monitor = self.get_object()
-        run_single_monitor_task.delay(monitor_id=monitor.pk)
+class ManualCheckView(APIView):
+    """
+    Ручная проверка монитора.
+    POST api/v1/monitoring/{id}/manual/
+    """
+
+    permission_classes = (IsAuthenticated, )
+    throttle_classes = (BurstManualCheckThrottle, DailyManualCheckThrottle, )
+
+    def post(self, request, monitor_id, *args, **kwargs):
+        monitor = get_object_or_404(Monitor, pk=monitor_id, user_id=request.user.id)
+
+        run_single_monitor_task.delay(monitor=monitor)
 
         return Response(
             {"detail": f"Ручная проверка монитора #{monitor.pk} запущена."},

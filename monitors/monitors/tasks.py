@@ -12,21 +12,15 @@ logger = get_task_logger(__name__)
 
 
 @shared_task
-def run_single_monitor_task(monitor_id):
+def run_single_monitor_task(monitor: Monitor):
     """Задача для запроса по одному мониторингу"""
-    logger.info(f"[run_single_monitor_task] Запуск проверки монитора ID: {monitor_id}")
-
-    try:
-        monitor = Monitor.objects.get(id=monitor_id)
-    except Monitor.DoesNotExist:
-        logger.error(f"Монитор с ID {monitor_id} не найден в БД.")
-        return
+    logger.info(f"[run_single_monitor_task] Запуск проверки монитора ID: {monitor.pk}")
 
     try:
         result = asyncio.run(execute_monitor_check(monitor))
     except Exception as exc:
         logger.exception(
-            f"[run_single_monitor_task] Критическая ошибка при выполнении проверки монитора #{monitor_id}: {exc}"
+            f"[run_single_monitor_task] Критическая ошибка при выполнении проверки монитора #{monitor.pk}: {exc}"
         )
         return
 
@@ -93,4 +87,4 @@ def run_scheduled_monitoring_tasks():
         if not last_check or (now - last_check.checked_at) >= timedelta(
             seconds=monitor.interval_seconds
         ):
-            run_single_monitor_task.delay(monitor.pk)
+            run_single_monitor_task.delay(monitor)
