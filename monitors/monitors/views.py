@@ -1,3 +1,4 @@
+import logging
 from rest_framework import status
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
@@ -14,6 +15,8 @@ from .services import execute_monitor_check
 from .tasks import run_single_monitor_task
 from .throttling import BurstManualCheckThrottle, DailyManualCheckThrottle
 
+
+logger = logging.getLogger(__name__)
 
 class MonitorViewSet(ModelViewSet):
     """CRUD для работы с мониторингом пользователя"""
@@ -63,8 +66,10 @@ class ManualCheckView(APIView):
     def post(self, request, monitor_id, *args, **kwargs):
         monitor = get_object_or_404(Monitor, pk=monitor_id, user_id=request.user.id)
 
-        run_single_monitor_task.delay(monitor=monitor)
+        run_single_monitor_task.delay(monitor_id=monitor_id)
 
+        logger.info(f"Пользователь {request.user.username} принудительно запустил мониторинг {monitor.id}")
+        
         return Response(
             {"detail": f"Ручная проверка монитора #{monitor.pk} запущена."},
             status=status.HTTP_202_ACCEPTED,

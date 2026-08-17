@@ -12,9 +12,19 @@ logger = get_task_logger(__name__)
 
 
 @shared_task
-def run_single_monitor_task(monitor: Monitor):
+def run_single_monitor_task(monitor_id: int):
     """Задача для запроса по одному мониторингу"""
-    logger.info(f"[run_single_monitor_task] Запуск проверки монитора ID: {monitor.pk}")
+    logger.info(f"[run_single_monitor_task] Запуск проверки монитора ID: {monitor_id}")
+
+    try:
+        monitor = Monitor.objects.get(id=monitor_id)
+    except Monitor.DoesNotExist:
+        logger.error(f"[run_single_monitor_task] Monitor {monitor_id} not found")
+        return {
+            "status": "error",
+            "error": "Monitor not found",
+            "monitor_id": monitor_id,
+        }
 
     try:
         result = asyncio.run(execute_monitor_check(monitor))
@@ -87,4 +97,4 @@ def run_scheduled_monitoring_tasks():
         if not last_check or (now - last_check.checked_at) >= timedelta(
             seconds=monitor.interval_seconds
         ):
-            run_single_monitor_task.delay(monitor)
+            run_single_monitor_task.delay(monitor_id=monitor.pk)

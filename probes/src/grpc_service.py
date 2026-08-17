@@ -13,7 +13,8 @@ if PROTO_DIR not in sys.path:
 
 import probes_pb2
 import probes_pb2_grpc
-from src.checkers.http_checker import execute_http_check
+from src.checkers.http_checker import BaseChecker
+from src.checkers.dataclasses import HttpCheckParams
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,8 @@ PROBE_ID = os.getenv("PROBE_ID", "default_probe")
 
 
 class ProbeGrpcService(probes_pb2_grpc.ProbeServiceServicer):
+    def __init__(self, checker: BaseChecker):
+        self._checker = checker
 
     async def ExecuteCheck(
         self, request: probes_pb2.ProbeCheckRequest, context
@@ -30,7 +33,7 @@ class ProbeGrpcService(probes_pb2_grpc.ProbeServiceServicer):
             f"[Probe] Выполнение проверки для monitor_id={request.monitor_id} ({request.url})"
         )
 
-        result = await execute_http_check(
+        params = HttpCheckParams(
             url=request.url,
             method=request.method,
             expected_status_code=request.expected_status_code,
@@ -38,18 +41,19 @@ class ProbeGrpcService(probes_pb2_grpc.ProbeServiceServicer):
             timeout_seconds=request.timeout_seconds or 10.0,
         )
 
+        result = await self._checker.execute(params)
+
         logger.info(
             f"[Probe] Завершена проверка monitor_id={request.monitor_id}. "
-            f"Успех: {result['is_success']}, Время: {result['response_time_ms']}ms"
+            f"Успех: {result.is_success}, Время: {result.response_time_ms}ms"
         )
 
-        # Возвращаем Protobuf-ответ
         return probes_pb2.ProbeCheckResponse(
             monitor_id=request.monitor_id,
-            status_code=result["status_code"],
-            response_time_ms=result["response_time_ms"],
-            is_success=result["is_success"],
-            error_message=result["error_message"],
+            status_code=result.status_code,
+            response_time_ms=result.response_time_ms,
+            is_success=result.is_success,
+            error_message=result.error_message,
             probe_id=PROBE_ID,
         )
 

@@ -23,7 +23,7 @@ from grpc_service import UserGrpcService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("grpc_server")
 
-PORT = os.getenv("PROBE_GRPC_PORT", "50051")
+PORT = os.getenv("USER_SUPPORT_GRPC_PORT", "50051")
 
 def serve():
     # Создаем gRPC сервер с пулом воркеров (потоков)

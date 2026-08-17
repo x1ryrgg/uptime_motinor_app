@@ -3,6 +3,7 @@ import os
 import sys
 import logging
 import grpc
+import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,7 +20,7 @@ if BASE_DIR not in sys.path:
 
 import probes_pb2_grpc
 from src.grpc_service import ProbeGrpcService
-from src.checkers.http_checker import http_client, execute_http_check
+from src.checkers.http_checker import HttpChecker
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,27 +36,39 @@ async def serve():
     options = [
         ("grpc.max_concurrent_streams", 10000),  # Макс. параллельных стримов/запросов
     ]
-    server = grpc.aio.server(options=options)
 
-    # Регистрируем сервис
-    probes_pb2_grpc.add_ProbeServiceServicer_to_server(
-        ProbeGrpcService(), server
-    )
+    async with httpx.AsyncClient(
+            limits=httpx.Limits(
+                max_connections=10000,
+                max_keepalive_connections=2000,
+            ),
+            follow_redirects=True,
+            verify=False,  # Отключение SSL-проверки
+    ) as http_client:
+        http_checker = HttpChecker(client=http_client)
 
-    listen_addr = f"[::]:{PORT}"
-    server.add_insecure_port(listen_addr)
+        # Создаем gRPC сервер
+        server = grpc.aio.server(options=options)
 
-    logger.info(f"🚀 Probes gRPC Async Server запущен на {listen_addr}...")
-    await server.start()
+        # Регистрируем сервис
+        probes_pb2_grpc.add_ProbeServiceServicer_to_server(
+            ProbeGrpcService(checker=http_checker),
+            server
+        )
 
-    try:
-        await server.wait_for_termination()
-    except asyncio.CancelledError:
-        logger.info("Остановка gRPC сервера...")
-        await server.stop(0)
-    finally:
-        # Корректно закрываем HTTP-клиент и все сокеты при выключении
-        await http_client.aclose()
+        listen_addr = f"[::]:{PORT}"
+        server.add_insecure_port(listen_addr)
+
+        logger.info(f"🚀 Probes gRPC Async Server запущен на {listen_addr}...")
+        await server.start()
+
+        try:
+            await server.wait_for_termination()
+        except asyncio.CancelledError:
+            logger.info("Остановка gRPC сервера...")
+            await server.stop(grace=5)  # Даем 5 секунд на завершение текущих запросов
+        finally:
+            logger.info("Завершение работы HTTP-клиента...")
 
 
 if __name__ == "__main__":

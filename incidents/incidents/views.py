@@ -10,5 +10,5 @@ class IncidentsViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Incidents.objects.filter(user_id=self.request.user.id)
+        return Incidents.objects.filter(user_id=self.request.user.id).order_by("-started_at", "status")
 

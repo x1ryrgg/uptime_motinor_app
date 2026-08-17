@@ -34,7 +34,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
 
     path("api/v1/monitoring/", include(monitoring_router.urls)),
-    path("api/v1/monitoring/{id}/manual/", ManualCheckView.as_view(), name="manual"),
+    path("api/v1/monitoring/<int:monitor_id>/manual/", ManualCheckView.as_view(), name="manual"),
 
     # --- OpenAPI 3 & Swagger / Redoc ---
     path('api/monitors/v1/schema/', SpectacularAPIView.as_view(), name='schema'),
