@@ -1,4 +1,4 @@
-import logging
+from shared_logging.logging import get_logger
 from rest_framework import status
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
@@ -16,7 +16,7 @@ from .tasks import run_single_monitor_task
 from .throttling import BurstManualCheckThrottle, DailyManualCheckThrottle
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class MonitorViewSet(ModelViewSet):
     """CRUD для работы с мониторингом пользователя"""
@@ -68,7 +68,11 @@ class ManualCheckView(APIView):
 
         run_single_monitor_task.delay(monitor_id=monitor_id)
 
-        logger.info(f"Пользователь {request.user.username} принудительно запустил мониторинг {monitor.id}")
+        logger.info(
+            "Forced start run_single_monitor_task",
+            user_id=request.user.id,
+            monitor_id=monitor_id
+        )
         
         return Response(
             {"detail": f"Ручная проверка монитора #{monitor.pk} запущена."},

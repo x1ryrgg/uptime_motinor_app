@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import grpc
+from shared_logging.logging import get_logger
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,7 +19,8 @@ if PROTO_DIR not in sys.path:
 import probes_pb2
 import probes_pb2_grpc
 
-logger = logging.getLogger("monitors")
+
+logger = get_logger(__name__)
 
 # Хост и порт gRPC-сервера probes
 PROBES_GRPC_HOST = os.getenv("PROBES_GRPC_HOST", )
@@ -35,6 +37,14 @@ async def execute_probe_check_via_grpc(
     """
     Выполняет асинхронный gRPC-запрос в сервис probes для сетевой проверки.
     """
+
+    logger.debug(
+        "Sending gRPC check request to probes",
+        monitor_id=monitor_id,
+        url=url,
+        grpc_host=PROBES_GRPC_HOST,
+    )
+
     try:
         # Используем асинхронный gRPC канал
         async with grpc.aio.insecure_channel(PROBES_GRPC_HOST) as channel:
@@ -52,6 +62,14 @@ async def execute_probe_check_via_grpc(
             # Вызываем асинхронный RPC метод с таймаутом ожидания ответа
             response = await stub.ExecuteCheck(request, timeout=timeout_seconds + 2.0)
 
+            logger.info(
+                "gRPC check response received",
+                monitor_id=monitor_id,
+                is_success=response.is_success,
+                response_time_ms=response.response_time_ms,
+                probe_id=response.probe_id,
+            )
+
             return {
                 "status_code": response.status_code,
                 "response_time_ms": response.response_time_ms,
@@ -62,10 +80,18 @@ async def execute_probe_check_via_grpc(
 
     except grpc.RpcError as e:
         logger.error(
-            f"[gRPC Probes Client Error] Не удалось выполнить проверку для monitor_id #{monitor_id}. "
-            f"Код: {e.code()}, Детали: {e.details()}"
+            "gRPC probe execution failed",
+            monitor_id=monitor_id,
+            grpc_code=e.code().name if e.code() else "UNKNOWN",
+            grpc_details=e.details(),
+            grpc_host=PROBES_GRPC_HOST,
         )
         return None
     except Exception as e:
-        logger.error(f"[gRPC Probes Client Error] Критическая ошибка связи с probes: {e}")
+        logger.error(
+            "Unexpected error during gRPC probe execution",
+            monitor_id=monitor_id,
+            grpc_host=PROBES_GRPC_HOST,
+            exc_info=True,
+        )
         return None

@@ -1,7 +1,7 @@
-import logging
 import os
 import sys
 import grpc
+from shared_logging.logging import get_logger
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,10 +18,10 @@ if PROTO_DIR not in sys.path:
 import users_pb2
 import users_pb2_grpc
 
-logger = logging.getLogger("incidents")
+logger = get_logger(__name__)
 
 # Адрес и порт запущенного gRPC-сервера user_support
-USER_SUPPORT_GRPC_HOST = os.getenv("USER_SUPPORT_GRPC_HOST", "localhost:50051")
+USER_SUPPORT_GRPC_HOST = os.getenv("USER_SUPPORT_GRPC_HOST")
 
 
 def get_user_settings_via_grpc(user_id: int) -> dict | None:
@@ -37,7 +37,10 @@ def get_user_settings_via_grpc(user_id: int) -> dict | None:
             # Вызываем удаленный метод (RPC)
             response = stub.GetUserNotificationSettings(request, timeout=3.0)
 
-            logger.info(f"[gRPC Client] Успешно получены данные для user_id={user_id}")
+            logger.info(
+                "gRPC check response success",
+                user_id=user_id,
+            )
 
             return {
                 "user_id": response.user_id,
@@ -54,7 +57,19 @@ def get_user_settings_via_grpc(user_id: int) -> dict | None:
             f"[gRPC Client Error] Не удалось получить данные пользователя #{user_id}. "
             f"Код: {e.code()}, Детали: {e.details()}"
         )
+        logger.error(
+            "gRPC user_support execution failed",
+            user_id=user_id,
+            grpc_code=e.code().name if e.code() else "UNKNOWN",
+            grpc_details=e.details(),
+            grpc_host=USER_SUPPORT_GRPC_HOST,
+        )
         return None
     except Exception as e:
-        logger.error(f"[gRPC Client Error] Критическая ошибка связи с user_support: {e}")
+        logger.error(
+            "Unexpected error during gRPC probe execution",
+            user_id=user_id,
+            grpc_host=USER_SUPPORT_GRPC_HOST,
+            exc_info=True,
+        )
         return None

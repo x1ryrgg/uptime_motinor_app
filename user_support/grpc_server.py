@@ -1,7 +1,7 @@
 import os
 import sys
-import logging
 from concurrent import futures
+from shared_logging.logging import get_logger
 import grpc
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -20,8 +20,8 @@ django.setup()
 import users_pb2_grpc
 from grpc_service import UserGrpcService
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("grpc_server")
+
+logger = get_logger(__name__)
 
 PORT = os.getenv("USER_SUPPORT_GRPC_PORT", "50051")
 
@@ -34,16 +34,25 @@ def serve():
         UserGrpcService(), server
     )
 
-    server.add_insecure_port(f"[::]:{PORT}")
+    listen_addr = f"[::]:{PORT}"
+    server.add_insecure_port(listen_addr)
     server.start()
-    logger.info(f"🚀 gRPC Server запущен и слушает порт {PORT}...")
+
+    logger.info("gRPC Server started successfully", port=PORT, listen_addr=listen_addr)
 
     try:
         server.wait_for_termination()
     except KeyboardInterrupt:
-        logger.info("Остановка gRPC сервера...")
-        server.stop(0)
+        logger.info("Stopping gRPC server gracefully...")
+        # Даем 5 секунд на завершение текущих gRPC-запросов
+        server.stop(grace=5)
+    except Exception:
+        logger.error("gRPC server crashed unexpectedly", exc_info=True)
+        server.stop(grace=0)
 
 
 if __name__ == "__main__":
-    serve()
+    try:
+        serve()
+    except KeyboardInterrupt:
+        logger.info("Сервер остановлен")

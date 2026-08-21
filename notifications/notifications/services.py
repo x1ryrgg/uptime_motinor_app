@@ -5,12 +5,13 @@ import requests
 import ssl
 import certifi
 from abc import ABC, abstractmethod
+from shared_logging.logging import get_logger
 
 from django.conf import settings
 from django.core.mail import send_mail, get_connection
 from .models import Notifications, NotificationReceiver, NotificationType
 
-logger = logging.getLogger('notifications')
+logger = get_logger(__name__)
 
 
 class BaseNotificationSender(ABC):
@@ -36,7 +37,11 @@ class EmailSender(BaseNotificationSender):
             )
             return True
         except Exception as e:
-            logger.error(f"[EmailSender] Ошибка отправки письма на {target}: {e} | {traceback.format_exc()}")
+            logger.error(
+                "EmailSender failed to send email",
+                target=target,
+                exc_info=True
+            )
             return False
 
 
@@ -58,10 +63,19 @@ class TgSender(BaseNotificationSender):
             response = requests.post(url, json=payload, timeout=10)
             if response.status_code == 200:
                 return True
-            logger.error(f"[TgSender] Ошибка TG API. Статус: {response.status_code}, Ответ: {response.text}")
+            logger.error(
+                "TgSender API returned error status",
+                target=target,
+                status_code=response.status_code,
+                text=response.text,
+            )
             return False
         except Exception as e:
-            logger.error(f"[TgSender] Сетевая ошибка при отправке в TG ({target}): {e}")
+            logger.error(
+                "TgSender network error",
+                target=target,
+                exc_info=True
+            )
             return False
 
 
@@ -94,7 +108,14 @@ class EmailSaver(BaseNotifySaver):
                 is_sent=False,
             )
         except Exception as e:
-            logger.error(f"[EmailSaver] Ошибка сохранения: {e}")
+            logger.error(
+                "EmailSaver create_notification error",
+                user_id=user_id,
+                type=notification_type,
+                title=title,
+                message=message,
+                exc_info=True
+            )
             return None
 
     def mark_as_sent(self, notification: Notifications):
@@ -115,7 +136,14 @@ class TgSaver(BaseNotifySaver):
                 is_sent=False
             )
         except Exception as e:
-            logger.error(f"[TgSaver] Ошибка сохранения: {e}")
+            logger.error(
+                "TgSaver create_notification error",
+                user_id=user_id,
+                type=notification_type,
+                title=title,
+                message=message,
+                exc_info=True
+            )
             return None
 
     def mark_as_sent(self, notification: Notifications):
@@ -145,9 +173,19 @@ class NotificationChannel:
         if self.sender.send(title=title, message=message, target=target):
             # 3. При успехе меняем статус через Saver
             self.saver.mark_as_sent(notification)
-            logger.info(f"[NotificationChannel] Уведомление #{notification.id} доставлено на {target}")
+            logger.info(
+                'NotificationChannel successfully sent',
+                notification_id=notification.pk,
+                user_id=user_id,
+                channel=notification.receiver_type,
+            )
         else:
-            logger.warning(f"[NotificationChannel] Ошибка доставки уведомления #{notification.id}")
+            logger.warning(
+                "NotificationChannel sending failed",
+                notification_id=notification.pk,
+                user_id=user_id,
+                channel=notification.receiver_type,
+            )
 
         return notification
 
@@ -173,10 +211,14 @@ class NotificationService:
     ) -> Notifications | None:
         channel = cls.CHANNELS.get(receiver_type)
         if not channel:
-            logger.error(f"[NotificationService] Неизвестный тип получателя: {receiver_type}")
+            logger.error(
+                "Unknown recipient channel type",
+                receiver_type=receiver_type,
+                user_id=user_id,
+            )
             return None
 
-            # Передаем всю работу соответствующему каналу
+        # Передаем всю работу соответствующему каналу
         return channel.process(
             user_id=user_id,
             notification_type=notification_type,

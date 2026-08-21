@@ -1,10 +1,10 @@
 import time
 import httpx
-import logging
+from shared_logging.logging import get_logger
 from monitors.models import Monitor, CheckResult
 from monitors.grpc_client import execute_probe_check_via_grpc
 
-logger = logging.getLogger("monitors")
+logger = get_logger(__name__)
 
 
 async def execute_monitor_check_local(monitor: Monitor) -> CheckResult:
@@ -43,10 +43,13 @@ async def execute_monitor_check_local(monitor: Monitor) -> CheckResult:
                 )
 
     except httpx.TimeoutException:
-        error_message = "Таймаут соединения (превышено 10 сек)"
+        logger.warning("Local check timeout exceeded", monitor_id=monitor.pk, url=monitor.url, timeout_seconds=timeout)
+        error_message = f"Таймаут соединения (превышено {timeout} сек)"
     except httpx.RequestError as exc:
+        logger.warning("Network request failed", monitor_id=monitor.pk, url=monitor.url, error=str(exc))
         error_message = f"Ошибка сети: {str(exc)}"
     except Exception as exc:
+        logger.error("Unexpected error during check", monitor_id=monitor.pk, url=monitor.url, exc_info=True)
         error_message = f"[Local Check Error] Неизвестная ошибка: {str(exc)}"
 
     response_time_ms = int((time.perf_counter() - start_time) * 1000)
@@ -86,11 +89,16 @@ async def execute_monitor_check(monitor: Monitor) -> CheckResult:
                 error_message=probe_response["error_message"] or None,
             )
     except Exception as exc:
-        logger.error(f"[gRPC Fail] Ошибка при обращении к probes: {exc}")
+        logger.error(
+            "Execution error during gRPC probe call",
+            monitor_id=monitor.pk,
+            exc_info=True,
+        )
 
-        # Fallback: если gRPC вернул None или выбросил исключение
+    # Fallback: если gRPC вернул None или выбросил исключение
     logger.warning(
-        f"⚠️ [Fallback Triggered] Сервис probes недоступен для монитора #{monitor.pk}. "
-        f"Выполняется локальная проверка из monitors..."
+        "Activating local HTTP fallback check",
+        monitor_id=monitor.pk,
+        url=monitor.url,
     )
     return await execute_monitor_check_local(monitor)

@@ -6,20 +6,31 @@ from datetime import timedelta
 
 from .models import Monitor, CheckResult
 from .services import execute_monitor_check, execute_monitor_check_local
-from celery.utils.log import get_task_logger
+from shared_logging.logging import get_logger
 
-logger = get_task_logger(__name__)
+logger = get_logger(__name__)
 
 
-@shared_task
-def run_single_monitor_task(monitor_id: int):
+@shared_task(
+    name="monitors.tasks.run_single_monitor_task",
+    bind=True,
+)
+def run_single_monitor_task(self, monitor_id: int):
     """Задача для запроса по одному мониторингу"""
-    logger.info(f"[run_single_monitor_task] Запуск проверки монитора ID: {monitor_id}")
+    logger.info(
+        "Starting monitor check task",
+        task_id=self.request.id,
+        monitor_id=monitor_id,
+    )
 
     try:
         monitor = Monitor.objects.get(id=monitor_id)
     except Monitor.DoesNotExist:
-        logger.error(f"[run_single_monitor_task] Monitor {monitor_id} not found")
+        logger.warning(
+            "Monitor not found for check task",
+            task_id=self.request.id,
+            monitor_id=monitor_id,
+        )
         return {
             "status": "error",
             "error": "Monitor not found",
@@ -29,8 +40,11 @@ def run_single_monitor_task(monitor_id: int):
     try:
         result = asyncio.run(execute_monitor_check(monitor))
     except Exception as exc:
-        logger.exception(
-            f"[run_single_monitor_task] Критическая ошибка при выполнении проверки монитора #{monitor.pk}: {exc}"
+        logger.error(
+            "Critical error during monitor execution",
+            task_id=self.request.id,
+            monitor_id=monitor_id,
+            exc_info=True,
         )
         return
 
@@ -40,7 +54,10 @@ def run_single_monitor_task(monitor_id: int):
         if result.is_success:
             if monitor.consecutive_failures != 0:
                 logger.info(
-                    f"[Monitor #{monitor.pk} - {monitor.name}] Сброс счетчика ошибок с {monitor.consecutive_failures} до 0."
+                    "Resetting consecutive failures count to zero",
+                    monitor_id=monitor.pk,
+                    monitor_name=monitor.name,
+                    previous_failures=monitor.consecutive_failures,
                 )
                 monitor.consecutive_failures = 0
             monitor.consecutive_successes += 1
@@ -75,10 +92,13 @@ def run_single_monitor_task(monitor_id: int):
     )
 
     logger.info(
-        f"Завершена проверка монитора #{monitor.pk}. "
-        f"Статус: {'UP' if result.is_success else 'DOWN'}, Время ответа: {result.response_time_ms}ms. Событие отправлено в RabbitMQ."
+        "Monitor check task completed successfully",
+        task_id=self.request.id,
+        monitor_id=monitor.pk,
+        is_success=result.is_success,
+        response_time_ms=result.response_time_ms,
+        consecutive_failures=monitor.consecutive_failures,
     )
-
 
 @shared_task
 def run_scheduled_monitoring_tasks():
@@ -86,7 +106,7 @@ def run_scheduled_monitoring_tasks():
     Периодическая таска (запускается раз в N секунд
     Фильтрует мониторы, которым пора пройти проверку по интервалу.
     """
-    logger.info(f"[run_scheduled_monitoring_tasks] Запуск отработки мониторинга")
+    logger.info("Starting scheduled monitoring worker check cycle")
     active_monitors = Monitor.objects.filter(is_active=True)
 
     now = timezone.now()

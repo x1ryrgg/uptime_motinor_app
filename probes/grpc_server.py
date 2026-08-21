@@ -1,10 +1,10 @@
 import asyncio
 import os
 import sys
-import logging
 import grpc
 import httpx
 from dotenv import load_dotenv
+from shared_logging.logging import get_logger, setup_logging
 
 load_dotenv()
 
@@ -22,12 +22,7 @@ import probes_pb2_grpc
 from src.grpc_service import ProbeGrpcService
 from src.checkers.http_checker import HttpChecker
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = logging.getLogger("probes.server")
+logger = get_logger(__name__)
 
 PORT = os.getenv("PROBE_GRPC_PORT", "50052")
 
@@ -59,19 +54,23 @@ async def serve():
         listen_addr = f"[::]:{PORT}"
         server.add_insecure_port(listen_addr)
 
-        logger.info(f"🚀 Probes gRPC Async Server запущен на {listen_addr}...")
+        logger.info("gRPC Server started successfully", port=PORT, listen_addr=listen_addr)
         await server.start()
 
         try:
             await server.wait_for_termination()
-        except asyncio.CancelledError:
-            logger.info("Остановка gRPC сервера...")
-            await server.stop(grace=5)  # Даем 5 секунд на завершение текущих запросов
-        finally:
-            logger.info("Завершение работы HTTP-клиента...")
+        except KeyboardInterrupt:
+            logger.info("Stopping gRPC server gracefully...")
+            # Даем 5 секунд на завершение текущих gRPC-запросов
+            await server.stop(grace=5)
+        except Exception:
+            logger.error("gRPC server crashed unexpectedly", exc_info=True)
+            await server.stop(grace=0)
 
 
 if __name__ == "__main__":
+    setup_logging(service_name="probes", log_level="INFO")
+
     try:
         asyncio.run(serve())
     except KeyboardInterrupt:

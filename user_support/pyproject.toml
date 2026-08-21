@@ -20,8 +20,13 @@ dependencies = [
     "nplusone (>=1.0.0,<2.0.0)",
     "grpcio (>=1.83.0,<2.0.0)",
     "grpcio-tools (>=1.83.0,<2.0.0)",
-    "requests (>=2.34.2,<3.0.0)"
+    "requests (>=2.34.2,<3.0.0)",
+    "shared-logging",
 ]
+
+[tool.poetry.dependencies]
+# Указываем относительно папки к локальной папке shared
+shared_logging = { path = "../shared/shared_logging", develop = true }
 
 [tool.poetry]
 package-mode = false

@@ -55,7 +55,8 @@ services:
   # ==========================================
   user_support_web:
     build:
-      context: ./user_support
+      context: .
+      dockerfile: ./user_support/Dockerfile
     container_name: user_support_web
     env_file:
       - ./user_support/.env
@@ -75,7 +76,8 @@ services:
 
   user_support_grpc:
     build:
-      context: ./user_support
+      context: .
+      dockerfile: ./user_support/Dockerfile
     container_name: user_support_grpc
     env_file:
       - ./user_support/.env
@@ -93,7 +95,8 @@ services:
   # ==========================================
   monitors_web:
     build:
-      context: ./monitors
+      context: .
+      dockerfile: ./monitors/Dockerfile
     container_name: monitors_web
     env_file:
       - ./monitors/.env
@@ -116,7 +119,8 @@ services:
 
   monitors_beat:
     build:
-      context: ./monitors
+      context: .
+      dockerfile: ./monitors/Dockerfile
     container_name: monitors_beat
     env_file:
       - ./monitors/.env
@@ -130,7 +134,8 @@ services:
 
   monitors_worker:
     build:
-      context: ./monitors
+      context: .
+      dockerfile: ./monitors/Dockerfile
     container_name: monitors_worker
     env_file:
       - ./monitors/.env
@@ -153,8 +158,9 @@ services:
   # ==========================================
   probes_grpc:
     build:
-      context: ./probes
-    # container_name: probes_grpc  - Убираем жесткое имя для масштабирования
+      context: .
+      dockerfile: ./probes/Dockerfile
+    # container_name: probes_grpc - Убираем жесткое имя для масштабирования
     env_file:
       - ./probes/.env
     command: python grpc_server.py
@@ -176,7 +182,8 @@ services:
   # ==========================================
   incidents_web:
     build:
-      context: ./incidents
+      context: .
+      dockerfile: ./incidents/Dockerfile
     container_name: incidents_web
     env_file:
       - ./incidents/.env
@@ -198,7 +205,8 @@ services:
 
   incidents_worker:
     build:
-      context: ./incidents
+      context: .
+      dockerfile: ./incidents/Dockerfile
     container_name: incidents_worker
     env_file:
       - ./incidents/.env
@@ -221,7 +229,8 @@ services:
   # ==========================================
   notifications_web:
     build:
-      context: ./notifications
+      context: .
+      dockerfile: ./notifications/Dockerfile
     container_name: notifications_web
     env_file:
       - ./notifications/.env
@@ -243,7 +252,8 @@ services:
 
   notifications_worker:
     build:
-      context: ./notifications
+      context: .
+      dockerfile: ./notifications/Dockerfile
     container_name: notifications_worker
     env_file:
       - ./notifications/.env

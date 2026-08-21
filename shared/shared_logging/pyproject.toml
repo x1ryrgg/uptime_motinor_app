@@ -1,0 +1,21 @@
+[project]
+name = "shared-logging"
+version = "0.1.0"
+description = "Shared logging module"
+authors = [
+    {name = "x1", email = "zhdamarovd@inbox.ru"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "structlog (>=26.1.0,<27.0.0)",
+    "prometheus-client (>=0.26.0,<0.27.0)",
+    "starlette (>=1.6.0,<2.0.0)"
+]
+
+[tool.poetry]
+packages = [{include = "shared_logging", from = "src"}]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

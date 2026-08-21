@@ -21,8 +21,13 @@ dependencies = [
     "django-celery-beat (>=2.9.0,<3.0.0)",
     "redis (>=8.1.0,<9.0.0)",
     "grpcio (>=1.83.0,<2.0.0)",
-    "grpcio-tools (>=1.83.0,<2.0.0)"
+    "grpcio-tools (>=1.83.0,<2.0.0)",
+    "shared-logging",
 ]
+
+[tool.poetry.dependencies]
+# Указываем относительно папки к локальной папке shared
+shared_logging = { path = "../shared/shared_logging", develop = true }
 
 [tool.poetry]
 package-mode = false

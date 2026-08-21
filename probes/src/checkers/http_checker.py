@@ -1,10 +1,10 @@
 import time
 import httpx
-import logging
 from abc import ABC, abstractmethod
+from shared_logging.logging import get_logger
 from .dataclasses import HttpCheckParams, CheckResult
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BaseChecker(ABC):
@@ -32,10 +32,13 @@ class HttpChecker(BaseChecker):
             return self._build_result(response.status_code, start_time, is_success, error_msg)
 
         except httpx.TimeoutException:
+            logger.warning("Check timeout exceeded", url=params.url, timeout=params.timeout_seconds)
             return self._build_result(0, start_time, False, f"[HttpChecker] Таймаут ({params.timeout_seconds}s)")
         except httpx.RequestError as exc:
+            logger.warning("Network request failed", url=params.url, error=str(exc))
             return self._build_result(0, start_time, False, f"[HttpChecker] Ошибка сети: {exc}")
         except Exception as exc:
+            logger.error("Unexpected error during check", url=params.url, error=str(exc))
             return self._build_result(0, start_time, False, f"[HttpChecker] Неизвестная ошибка: {exc}")
 
     def _validate_response(self, response: httpx.Response, params: HttpCheckParams) -> tuple[bool, str]:

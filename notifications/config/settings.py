@@ -9,10 +9,13 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
-
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+
+import structlog
 from dotenv import load_dotenv
+from shared_logging.logging import setup_logging
 import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -59,6 +62,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'shared_logging.middleware.SharedLoggerMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -68,7 +72,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'config.custom_middleware.LoggerMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -222,43 +225,49 @@ SPECTACULAR_SETTINGS = {
     'SECURITY': [{'BearerAuth': []}],
 }
 
-# settings.py
+
+setup_logging(service_name="monitors", log_level="INFO")
+
+# 2. Предварительная цепочка обработки для встроенных логов Django
+foreign_pre_chain = [
+    structlog.contextvars.merge_contextvars,
+    structlog.stdlib.add_logger_name,
+    structlog.stdlib.add_log_level,
+    structlog.processors.TimeStamper(fmt="iso"),
+]
 
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '[{asctime}] {levelname} [{name}:{lineno}] {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json_formatter": {
+            "()": "structlog.stdlib.ProcessorFormatter",
+            "processor": structlog.processors.JSONRenderer(),
+            "foreign_pre_chain": foreign_pre_chain,
         },
     },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "stream": sys.stdout,
+            "formatter": "json_formatter",
         },
     },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        # Перенаправляем django и celery в root-логгер
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
         },
-        'notifications': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        # Логгер для Celery задач
-        'celery': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
+        "celery": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }

@@ -8,6 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$/notifications" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/user_support" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/probes" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/shared/shared_logging/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/incidents/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/monitors/.venv" />

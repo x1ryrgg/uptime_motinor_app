@@ -1,6 +1,5 @@
 import os
 import sys
-import logging
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,8 +14,9 @@ import probes_pb2
 import probes_pb2_grpc
 from src.checkers.http_checker import BaseChecker
 from src.checkers.dataclasses import HttpCheckParams
+from shared_logging.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Идентификатор текущей ноды агента (например: fra1, msk1 или default_probe)
 PROBE_ID = os.getenv("PROBE_ID", "default_probe")
@@ -30,7 +30,11 @@ class ProbeGrpcService(probes_pb2_grpc.ProbeServiceServicer):
         self, request: probes_pb2.ProbeCheckRequest, context
     ) -> probes_pb2.ProbeCheckResponse:
         logger.info(
-            f"[Probe] Выполнение проверки для monitor_id={request.monitor_id} ({request.url})"
+            "Executing check",
+            monitor_id=request.monitor_id,
+            url=request.url,
+            method=request.method,
+            probe_id=PROBE_ID,
         )
 
         params = HttpCheckParams(
@@ -43,9 +47,16 @@ class ProbeGrpcService(probes_pb2_grpc.ProbeServiceServicer):
 
         result = await self._checker.execute(params)
 
-        logger.info(
-            f"[Probe] Завершена проверка monitor_id={request.monitor_id}. "
-            f"Успех: {result.is_success}, Время: {result.response_time_ms}ms"
+        log_method = logger.info if result.is_success else logger.warning
+
+        log_method(
+            "Check completed",
+            monitor_id=request.monitor_id,
+            is_success=result.is_success,
+            response_time_ms=result.response_time_ms,
+            status_code=result.status_code,
+            error_message=result.error_message,
+            probe_id=PROBE_ID,
         )
 
         return probes_pb2.ProbeCheckResponse(

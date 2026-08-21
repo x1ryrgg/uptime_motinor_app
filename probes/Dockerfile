@@ -1,10 +1,9 @@
-# 1. Используем легкий и свежий образ Python 3.13
 FROM python:3.13-slim AS builder
 
 # Настройки Python
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    POETRY_VERSION=1.8.3 \
+    POETRY_VERSION=2.2.1 \
     POETRY_HOME="/opt/poetry" \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
     POETRY_NO_INTERACTION=1
@@ -19,13 +18,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Устанавливаем Poetry
-ENV POETRY_VERSION=2.2.1
 RUN curl -sSL https://install.python-poetry.org | python3 - --version $POETRY_VERSION
 
 WORKDIR /app
 
+COPY shared /shared
+
 # Копируем зависимости
-COPY pyproject.toml poetry.lock* ./
+COPY probes/pyproject.toml probes/poetry.lock* ./
 
 # Устанавливаем только продакшен-зависимости
 RUN poetry install --no-root --no-interaction
@@ -48,11 +48,6 @@ WORKDIR /app
 # Копируем виртуальное окружение из builder
 COPY --from=builder /app/.venv /app/.venv
 
-# Копируем исходный код микросервиса
-COPY . .
+COPY --from=builder /shared /shared
 
-# Создаем непривилегированного пользователя для безопасности
-RUN adduser --disabled-password --gecos "" appuser && chown -R appuser:appuser /app
-USER appuser
-
-EXPOSE 8000
+COPY probes/ .

@@ -1,18 +1,22 @@
 from .getters import get_failure_threshold
 from .models import Incidents, IncidentStatus
 from celery import shared_task, current_app
-from celery.utils.log import get_task_logger
+from shared_logging.logging import get_logger
 from .grpc_client import get_user_settings_via_grpc
 
 
-logger = get_task_logger(__name__)
+logger = get_logger(__name__)
 
 
 def dispatch_notifications(user_id: int, notification_type: str, title: str, message: str):
     """Вспомогательная функция: запрашивает через gRPC настройки юзера и отправляет таски в RabbitMQ"""
     user_data = get_user_settings_via_grpc(user_id)
     if not user_data:
-        logger.error(f"[dispatch_notifications] Не удалось получить данные пользователя #{user_id}")
+        logger.error(
+            "Failed to fetch user settings via gRPC",
+            user_id=user_id,
+            notification_type=notification_type,
+        )
         return
 
     CHANNELS = [
@@ -39,8 +43,12 @@ def dispatch_notifications(user_id: int, notification_type: str, title: str, mes
                 queue="notifications_queue",
             )
 
-@shared_task(name='incidents.tasks.process_check_result_event')
+@shared_task(
+    name='incidents.tasks.process_check_result_event',
+    bind=True,
+)
 def process_incident_task(
+    self,
     monitor_id: int,
     monitor_name: str,
     monitor_url: str,
@@ -51,6 +59,14 @@ def process_incident_task(
     error_message: str = None,
 ):
     """Проверка последних результатов и создание/закрытие Инцидентов"""
+    logger.info(
+        "Processing check result event for incident handling",
+        task_id=self.request.id,
+        monitor_id=monitor_id,
+        is_success=is_success,
+        consecutive_failures=consecutive_failures,
+    )
+
     open_incident = Incidents.objects.filter(
         monitor_id=monitor_id, status=IncidentStatus.OPEN
     ).first()
@@ -59,8 +75,11 @@ def process_incident_task(
         if open_incident:
             open_incident.resolve()
             logger.info(
-                f"[INCIDENT RESOLVED] Инцидент #{open_incident.pk} закрыт для мониторинга #{monitor_id}, #{monitor_id} "
-                f"Длительность: {open_incident.duration_seconds} сек."
+                "Incident resolved successfully",
+                task_id=self.request.id,
+                incident_id=open_incident.pk,
+                monitor_id=monitor_id,
+                duration_seconds=open_incident.duration_seconds,
             )
 
             dispatch_notifications(
@@ -75,8 +94,13 @@ def process_incident_task(
     else:
         threshold = get_failure_threshold(interval_seconds=interval_seconds)
         logger.warning(
-            f"[CHECK FAILED] Мониторинг #{monitor_id} ({monitor_url}) недоступен. "
-            f"Сбой {consecutive_failures}/{threshold}. Причина: {error_message}"
+            "Monitor check failed",
+            task_id=self.request.id,
+            monitor_id=monitor_id,
+            monitor_url=monitor_url,
+            consecutive_failures=consecutive_failures,
+            threshold=threshold,
+            error_message=error_message,
         )
 
         if consecutive_failures >= threshold and not open_incident:
@@ -87,8 +111,13 @@ def process_incident_task(
                 cause=error_message or "Неизвестная ошибка сервера",
             )
             logger.error(
-                f"[INCIDENT CREATED] Создан новый инцидент #{incident.pk} для мониторинга #{monitor_id} ({monitor_url}). "
-                f"Порог сбоев ({threshold}) достигнут."
+                "New incident created",
+                task_id=self.request.id,
+                incident_id=incident.pk,
+                monitor_id=monitor_id,
+                user_id=user_id,
+                threshold=threshold,
+                cause=incident.cause,
             )
 
             dispatch_notifications(
