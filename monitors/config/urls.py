@@ -40,4 +40,6 @@ urlpatterns = [
     path('api/monitors/v1/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/monitors/v1/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/monitors/v1/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    
+    path('', include('django_prometheus.urls')),
 ]

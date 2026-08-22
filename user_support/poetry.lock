@@ -229,6 +229,22 @@ Django = ">=5.2"
 drf = ["djangorestframework"]
 
 [[package]]
+name = "django-prometheus"
+version = "2.5.0"
+description = "Django middlewares to monitor your application with Prometheus.io."
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "django_prometheus-2.5.0-py2.py3-none-any.whl", hash = "sha256:f15efb526cd53f9cf12da72dc55506322f5566b017a819ff27be1da302303134"},
+    {file = "django_prometheus-2.5.0.tar.gz", hash = "sha256:4837b3c3734d8350880839ab8235aafd250b668c348e159d4aecc3cbefeee53e"},
+]
+
+[package.dependencies]
+Django = ">=4.2,<5.0.dev0 || >=5.1.dev0,<6.1"
+prometheus-client = ">=0.7"
+
+[[package]]
 name = "djangorestframework"
 version = "3.17.1"
 description = "Web APIs for Django, made easy."
@@ -1050,4 +1066,4 @@ zstd = ["backports-zstd (>=1.0.0) ; python_version < \"3.14\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.14"
-content-hash = "83d594543cf798867be57eb272ae8cdafe48a96203a075850b1bcba5f931a777"
+content-hash = "2b79fef2777d852a1fe0c934d12b9834a74ad2a78320ae67e0599f778ac2b34e"

@@ -63,7 +63,7 @@ class ManualCheckView(APIView):
     permission_classes = (IsAuthenticated, )
     throttle_classes = (BurstManualCheckThrottle, DailyManualCheckThrottle, )
 
-    def post(self, request, monitor_id, *args, **kwargs):
+    def post(self, request, monitor_id: int, *args, **kwargs):
         monitor = get_object_or_404(Monitor, pk=monitor_id, user_id=request.user.id)
 
         run_single_monitor_task.delay(monitor_id=monitor_id)

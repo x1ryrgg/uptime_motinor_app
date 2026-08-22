@@ -23,7 +23,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.WARNING("Начинаем генерацию тестовых данных..."))
 
-        user = 1 # поменять
+        user_id = 1 # поменять
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -89,7 +89,7 @@ class Command(BaseCommand):
 
         for data in test_services:
             monitor, m_created = Monitor.objects.get_or_create(
-                user=user,
+                user_id=user_id,
                 url=data["url"],
                 defaults=data,
             )

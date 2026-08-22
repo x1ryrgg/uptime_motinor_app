@@ -23,6 +23,7 @@ dependencies = [
     "grpcio (>=1.83.0,<2.0.0)",
     "grpcio-tools (>=1.83.0,<2.0.0)",
     "shared-logging",
+    "django-prometheus (>=2.5.0,<3.0.0)",
 ]
 
 [tool.poetry.dependencies]
