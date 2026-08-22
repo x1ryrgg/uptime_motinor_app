@@ -110,13 +110,13 @@ graph TD
     INC_WORKER ==>|"gRPC: Get User Contacts<br/>(User Support Proto)"| US_GRPC
     NOTIF_WORKER -->|"Send Alert"| External[("External Providers<br/>Telegram / Email / SMS")]:::clientStyle
 
-    %% Observability Connections (Привязаны к конкретным web-сервисам)
+    %% Observability Connections
     Prometheus -->|"Scrape /metrics"| US_WEB
     Prometheus -->|"Scrape /metrics"| M_WEB
     Prometheus -->|"Scrape /metrics"| INC_WEB
     Prometheus -->|"Scrape /metrics"| NOTIF_WEB
 
-    Promtail -.->"Read stdout/stderr (Docker Socket)"| US_WEB
+    Promtail -. "Read stdout/stderr (Docker Socket)" .-> US_WEB
     Promtail -->|"Push Logs"| Loki
     Grafana -->|"Query Metrics"| Prometheus
     Grafana -->|"Query Logs"| Loki
