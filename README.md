@@ -13,6 +13,7 @@
 * **Message Broker:** RabbitMQ
 * **Databases & Cache:** PostgreSQL (отдельная БД для каждого сервиса), Redis
 * **Auth:** JWT (JSON Web Tokens), OAuth 
+* **Observability & Logging:** Prometheus, Grafana, Grafana Loki, Promtail,
 * **DevOps & Containerization:** Docker, Docker Compose
 
 ---
@@ -28,6 +29,7 @@ graph TD
     classDef probeStyle fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
     classDef dbStyle fill:#0f172a,stroke:#0ea5e9,stroke-width:2px,color:#f8fafc;
     classDef brokerStyle fill:#1e1029,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
+    classDef obsStyle fill:#2e1065,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
 
     subgraph ClientLayer ["Client / External API"]
         Client["SPA / Mobile / Postman<br/>(JWT Authentication / OAuth)"]:::clientStyle
@@ -58,6 +60,13 @@ graph TD
             NOTIF_WEB["notifications_web<br/>:8004 (History API)"]:::serviceStyle
             NOTIF_WORKER["notifications_worker<br/>(Email/TG/SMS Sender)"]:::serviceStyle
         end
+    end
+
+    subgraph ObservabilityLayer ["Observability & Monitoring"]
+        Prometheus[("Prometheus<br/>:9090 (Metrics Scraper)")]:::obsStyle
+        Promtail["Promtail<br/>(Docker Log Collector)"]:::obsStyle
+        Loki[("Grafana Loki<br/>:3100 (Log Aggregator)")]:::obsStyle
+        Grafana["Grafana<br/>:3000 (Dashboards & Visuals)"]:::obsStyle
     end
 
     subgraph EventBackbone ["Message Broker & Cache"]
@@ -100,6 +109,13 @@ graph TD
 
     INC_WORKER ==>|"gRPC: Get User Contacts<br/>(User Support Proto)"| US_GRPC
     NOTIF_WORKER -->|"Send Alert"| External[("External Providers<br/>Telegram / Email / SMS")]:::clientStyle
+
+    %% Observability Connections
+    Prometheus -->|"Scrape /metrics"| Microservices
+    Promtail -->|"Read stdout/stderr (Docker Socket)"| Microservices
+    Promtail -->|"Push Logs"| Loki
+    Grafana -->|"Query Metrics"| Prometheus
+    Grafana -->|"Query Logs"| Loki
 ```
 
 
@@ -138,6 +154,7 @@ graph TD
 5. **Регистрация инцидента:** Сервис `incidents` вычитывает событие. Если сайт упал (или восстановился после сбоя), создается или закрывается объект инцидента.
 6. **gRPC-интеграция:** Сервис `incidents` делает межсервисный gRPC-вызов к `user_support` для получения контактов владельца ресурса.
 7. **Уведомление:** Сообщение о сбое или восстановлении отправляется в очередь `notifications`, откуда воркеры нотификаций отправляют сообщения в Telegram / Email / SMS.
+8. **Сбор метрик и логов:** Prometheus скрейпит эндпоинты /metrics всех Django-сервисов и агентов. Promtail автоматически перехватывает лог-стримы контейнеров и отправляет в Loki.
 
 ---
 
@@ -145,16 +162,18 @@ graph TD
 
 ```text
 uptimemonitor/
+├── shared/                 # Общие собственные пакеты для всех сервисов
+│   └── user_support.proto  # Пакет, содержащий общее логирование и middleware 
 ├── protos/                 # Общие Protobuf-контракты (.proto) для всех сервисов
 │   ├── user_support.proto
 │   └── probes.proto
 ├── user_support/           # Микросервис пользователей & gRPC Server (:50051)
-│   ├── config/              # Настройки сервиса
+│   ├── config/             # Настройки сервиса
 │   ├── proto/              # Сгенерированные gRPC-стабы
 │   ├── grpc_server.py      # Точка входа gRPC сервера
 │   └── user_support/       # Django app
 ├── monitors/               # Микросервис управления мониторами & Celery Beat
-│   ├── config/              # Настройки сервиса
+│   ├── config/             # Настройки сервиса
 │   ├── proto/              # Сгенерированные gRPC-стабы (для probes)
 │   ├── grpc_client.py      # gRPC-клиент для вызова агентов probes
 │   └── monitors/           # Django app & tasks (с поддержкой Fallback)
@@ -165,11 +184,11 @@ uptimemonitor/
 │   │   └── grpc_service.py # Реализация gRPC Servicer
 │   └── grpc_server.py      # Запуск асинхронного gRPC сервера
 ├── incidents/              # Микросервис регистрации сбоев & gRPC Client
-│   ├── config/              # Настройки сервиса
+│   ├── config/             # Настройки сервиса
 │   ├── proto/              # gRPC-стабы (для user_support)
 │   └── incidents/          # Django app & tasks
 ├── notifications/          # Микросервис отправки сообщений (Email/TG/SMS)
-│   ├── config/              # Настройки сервиса
+│   ├── config/             # Настройки сервиса
 │   └── notifications/      # Django app & tasks
 ├── init-multiple-dbs.sql   # Скрипт инициализации независимых БД в PostgreSQL
 ├── docker-compose.yml      # Локальный запуск всего окружения
