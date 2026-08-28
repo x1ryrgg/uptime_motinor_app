@@ -32,7 +32,7 @@ incidents_router.register(r"", IncidentsViewSet, basename="incidents")
 urlpatterns = [
     path("admin/", admin.site.urls),
 
-    path("incidents/", include(incidents_router.urls)),
+    path("api/v1/incidents/", include(incidents_router.urls)),
 
     # --- OpenAPI 3 & Swagger / Redoc ---
     path('api/incidents/v1/schema/', SpectacularAPIView.as_view(), name='schema'),

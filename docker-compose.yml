@@ -1,106 +1,117 @@
 services:
-  # ==========================================
-  # ИНФРАСТРУКТУРА
-  # ==========================================
+
+  # ============================================================
+  # INFRASTRUCTURE
+  # ============================================================
   postgres:
     image: postgres:16-alpine
-    container_name: uptime_postgres
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Скрипт автоматического создания 4-х отдельных баз данных
       - ./init-multiple-dbs.sql:/docker-entrypoint-initdb.d/init-multiple-dbs.sql
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: uptime_redis
-    restart: always
-    ports:
-      - "6379"
+    restart: unless-stopped
+
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 5s
       retries: 5
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    container_name: uptime_rabbitmq
-    restart: always
-    ports:
-      - "5672"
-      - "15672"
+    restart: unless-stopped
+
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+
+    ports:
+      - "${RABBITMQ_MGMT_PORT}:15672"
+
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ==========================================
-  # МОНИТОРИНГ И ЛОГИРОВАНИЕ
-  # ==========================================
+  # ============================================================
+  # MONITORING
+  # ============================================================
   prometheus:
     image: prom/prometheus:v2.51.0
-    container_name: uptime_prometheus
-    restart: always
+    restart: unless-stopped
+
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT}:9090"
+
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
+
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
 
   loki:
     image: grafana/loki:2.9.4
-    container_name: uptime_loki
-    restart: always
+    restart: unless-stopped
+
     ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
+      - "${LOKI_PORT}:3100"
+
+    command:
+      - "-config.file=/etc/loki/local-config.yaml"
+
     volumes:
       - loki_data:/loki
 
   promtail:
     image: grafana/promtail:2.9.4
-    container_name: uptime_promtail
-    restart: always
+    restart: unless-stopped
+
     volumes:
       - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml
       - /var/run/docker.sock:/var/run/docker.sock
-    command: -config.file=/etc/promtail/config.yml
+
+    command:
+      - "-config.file=/etc/promtail/config.yml"
+
     depends_on:
-      - loki
+      loki:
+        condition: service_started
 
   grafana:
     image: grafana/grafana:10.4.0
-    container_name: uptime_grafana
-    restart: always
+    restart: unless-stopped
+
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT}:3000"
+
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
+
     depends_on:
       - prometheus
       - loki
@@ -112,94 +123,28 @@ services:
     build:
       context: .
       dockerfile: ./user_support/Dockerfile
-    container_name: user_support_web
+
     env_file:
       - ./user_support/.env
+
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_CACHE_URL: redis://redis:6379/1
+
+      USER_SUPPORT_GRPC_PORT: 50051
+
     command: >
-      sh -c "until python -c 'import socket, time; s = socket.socket(); s.connect((\"postgres\", 5432))' 2>/dev/null; do echo 'Waiting for Postgres...'; sleep 1; done;
-             python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8001"
-    ports:
-      - "8001:8001"
-    environment:
-      - DB_HOST=postgres
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    depends_on:
-      postgres:
-        condition: service_healthy
+      sh -c "
+      python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8001
+      "
 
-  user_support_grpc:
-    build:
-      context: .
-      dockerfile: ./user_support/Dockerfile
-    container_name: user_support_grpc
-    env_file:
-      - ./user_support/.env
-    command: python grpc_server.py
-    ports:
-      - "50051:50051"
-    environment:
-      - DB_HOST=postgres
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  # ==========================================
-  # МИКРОСЕРВИС: MONITORS
-  # ==========================================
-  monitors_web:
-    build:
-      context: .
-      dockerfile: ./monitors/Dockerfile
-    container_name: monitors_web
-    env_file:
-      - ./monitors/.env
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8002"
-    ports:
-      - "8002:8002"
-    environment:
-      - DB_HOST=postgres
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - REDIS_CACHE_URL=redis://redis:6379/1
-      - PROBES_GRPC_HOST=probes_grpc:50052
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-
-  monitors_beat:
-    build:
-      context: .
-      dockerfile: ./monitors/Dockerfile
-    container_name: monitors_beat
-    env_file:
-      - ./monitors/.env
-    command: celery -A config beat -l info
-    environment:
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  monitors_worker:
-    build:
-      context: .
-      dockerfile: ./monitors/Dockerfile
-    container_name: monitors_worker
-    env_file:
-      - ./monitors/.env
-    command: celery -A config worker -l info -Q monitors_queue,celery
-    environment:
-      - DB_HOST=postgres
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - PROBES_GRPC_HOST=probes_grpc:50052
     depends_on:
       postgres:
         condition: service_healthy
@@ -208,69 +153,193 @@ services:
       redis:
         condition: service_healthy
 
-  # ==========================================
-  # МИКРОСЕРВИС: PROBES
-  # ==========================================
-  probes_grpc:
+  user_support_grpc:
     build:
       context: .
-      dockerfile: ./probes/Dockerfile
-    # container_name: probes_grpc - Убираем жесткое имя для масштабирования
-    env_file:
-      - ./probes/.env
-    command: python grpc_server.py
-    ulimits:
-      nofile:
-        soft: 65535
-        hard: 65535
-    # ports:
-    #  - "50052:50052"
-    environment:
-      - PROBE_GRPC_PORT=50052
-      - PROBE_ID=docker_probe_1
-      - PYTHONUNBUFFERED=1
-    deploy:
-      replicas: 2
+      dockerfile: ./user_support/Dockerfile
 
-  # ==========================================
-  # МИКРОСЕРВИС: INCIDENTS
-  # ==========================================
-  incidents_web:
+    env_file:
+      - ./user_support/.env
+
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      USER_SUPPORT_GRPC_PORT: 50051
+
+    command: python grpc_server.py
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ============================================================
+  # MONITORS
+  # ============================================================
+  monitors_web:
     build:
       context: .
-      dockerfile: ./incidents/Dockerfile
-    container_name: incidents_web
+      dockerfile: ./monitors/Dockerfile
+
     env_file:
-      - ./incidents/.env
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8003"
-    ports:
-      - "8003:8003"
+      - ./monitors/.env
+
     environment:
-      - DB_HOST=postgres
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - REDIS_CACHE_URL=redis://redis:6379/1
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_CACHE_URL: redis://redis:6379/1
+
+      PROBES_GRPC_HOST: probes_grpc:50052
+
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8002
+      "
+
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  monitors_beat:
+    build:
+      context: .
+      dockerfile: ./monitors/Dockerfile
+
+    env_file:
+      - ./monitors/.env
+
+    environment:
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+    command: celery -A config beat -l info
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  monitors_worker:
+    build:
+      context: .
+      dockerfile: ./monitors/Dockerfile
+
+    env_file:
+      - ./monitors/.env
+
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_CACHE_URL: redis://redis:6379/1
+
+      PROBES_GRPC_HOST: probes_grpc:50052
+
+    command: celery -A config worker -l info -Q monitors_queue,celery
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ============================================================
+  # PROBES
+  # ============================================================
+  probes_grpc:
+    build:
+      context: .
+      dockerfile: ./probes/Dockerfile
+
+    env_file:
+      - ./probes/.env
+
+    environment:
+      PROBE_GRPC_PORT: 50052
+      PYTHONUNBUFFERED: 1
+
+    command: python grpc_server.py
+
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+
+  # ============================================================
+  # INCIDENTS
+  # ============================================================
+  incidents_web:
+    build:
+      context: .
+      dockerfile: ./incidents/Dockerfile
+
+    env_file:
+      - ./incidents/.env
+
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_CACHE_URL: redis://redis:6379/1
+
+      USER_SUPPORT_GRPC_HOST: user_support_grpc:50051
+
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8003
+      "
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   incidents_worker:
     build:
       context: .
       dockerfile: ./incidents/Dockerfile
-    container_name: incidents_worker
+
     env_file:
       - ./incidents/.env
-    command: celery -A config worker -l info -Q incidents_queue
+
     environment:
-      - DB_HOST=postgres
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - USER_SUPPORT_GRPC_HOST=user_support_grpc:50051
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+      USER_SUPPORT_GRPC_HOST: user_support_grpc:50051
+
+    command: celery -A config worker -l info -Q incidents_queue
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -279,49 +348,86 @@ services:
       user_support_grpc:
         condition: service_started
 
-  # ==========================================
-  # МИКРОСЕРВИС: NOTIFICATIONS
-  # ==========================================
+  # ============================================================
+  # NOTIFICATIONS
+  # ============================================================
   notifications_web:
     build:
       context: .
       dockerfile: ./notifications/Dockerfile
-    container_name: notifications_web
+
     env_file:
       - ./notifications/.env
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8004"
-    ports:
-      - "8004:8004"
+
     environment:
-      - DB_HOST=postgres
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - REDIS_CACHE_URL=redis://redis:6379/1
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_CACHE_URL: redis://redis:6379/1
+
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8004
+      "
+
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   notifications_worker:
     build:
       context: .
       dockerfile: ./notifications/Dockerfile
-    container_name: notifications_worker
+
     env_file:
       - ./notifications/.env
-    command: celery -A config worker -l info -Q notifications_queue
+
     environment:
-      - DB_HOST=postgres
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+    command: celery -A config worker -l info -Q notifications_queue
+
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ============================================================
+  # NGINX
+  # ============================================================
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+
+    ports:
+      - "${NGINX_PORT}:80"
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+    depends_on:
+      - user_support_web
+      - monitors_web
+      - incidents_web
+      - notifications_web
 
 volumes:
   postgres_data:

@@ -31,7 +31,7 @@ notification_router.register(r"", NotificationsViewSet, basename="notifications"
 urlpatterns = [
     path("admin/", admin.site.urls),
 
-    path("notifications/", include(notification_router.urls)),
+    path("api/v1/notifications/", include(notification_router.urls)),
 
     # --- OpenAPI 3 & Swagger / Redoc ---
     path("api/notifications/v1/schema/", SpectacularAPIView.as_view(), name="schema"),

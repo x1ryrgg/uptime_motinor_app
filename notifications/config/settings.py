@@ -30,16 +30,41 @@ load_dotenv()
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG')
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY is not configured")
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes", "on")
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv(
+        "DJANGO_ALLOWED_HOSTS",
+        "localhost,127.0.0.1"
+    ).split(",")
+    if host.strip()
+]
+
 INTERNAL_IPS = ['localhost', "127.0.0.1", '0.0.0.0']
+
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        ""
+    ).split(",")
+    if origin.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CSRF_TRUSTED_ORIGINS",
+        ""
+    ).split(",")
+    if origin.strip()
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -101,15 +126,15 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-           'ENGINE': 'django.db.backends.postgresql_psycopg2',
-           'NAME': os.getenv('DB_NAME'),
-           'USER': os.getenv('DB_USER'),
-           'PASSWORD': os.getenv('DB_PASSWORD'),
-           'HOST': os.getenv('DB_HOST'), # db for docker
-           'PORT': os.getenv('DB_PORT'),
-       }
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
+        "HOST": os.getenv("DB_HOST", "postgres"),
+        "PORT": os.getenv("DB_PORT", "5432"),
     }
+}
 
 # Отправка mail писем
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -155,10 +180,10 @@ STATIC_URL = 'static/'
 
 
 # CELERY & RABBITMQ CONFIGURATION
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
 
 # Redis для хранения результатов выполнения задач (База №0)
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
 
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
@@ -177,9 +202,9 @@ CELERY_TASK_TRACK_STARTED = True
 
 # REDIS CACHE CONFIGURATION
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': os.getenv('REDIS_CACHE_URL'),
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.getenv("REDIS_CACHE_URL"),
     }
 }
 
@@ -229,7 +254,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 
-setup_logging(service_name="monitors", log_level="INFO")
+setup_logging(service_name="notifications", log_level="INFO")
 
 # 2. Предварительная цепочка обработки для встроенных логов Django
 foreign_pre_chain = [
