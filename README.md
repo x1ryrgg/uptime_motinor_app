@@ -197,3 +197,81 @@ uptimemonitor/
 ├── init-multiple-dbs.sql   # Скрипт инициализации независимых БД в PostgreSQL
 ├── docker-compose.yml      # Локальный запуск всего окружения
 └── README.md
+
+
+```mermaid
+flowchart TB
+
+    Client["🌐 Client<br/>SPA / Mobile / Postman"]
+
+    Nginx["🔀 Nginx / Ingress"]
+
+    Client --> Nginx
+
+    subgraph Kubernetes["☸️ Kubernetes Cluster"]
+
+        subgraph Services["Microservices"]
+
+            US["👤 user_support<br/>HTTP :8000<br/>gRPC :50051"]
+
+            MON["📊 monitors<br/>HTTP :8000"]
+
+            PROBES["🔎 probes<br/>gRPC :50052"]
+
+            INC["🚨 incidents<br/>HTTP :8000"]
+
+            NOTIF["📨 notifications<br/>HTTP :8000"]
+
+        end
+
+        Rabbit["🐇 RabbitMQ<br/>:5672"]
+
+        Redis["🔴 Redis<br/>:6379"]
+
+        Postgres["🐘 PostgreSQL<br/>:5432"]
+
+        US_DB[("uptimer_users")]
+        MON_DB[("uptimer_monitors")]
+        INC_DB[("uptimer_incidents")]
+        NOTIF_DB[("uptimer_notifications")]
+
+        US --> US_DB
+        MON --> MON_DB
+        INC --> INC_DB
+        NOTIF --> NOTIF_DB
+
+        MON --> Rabbit
+        Rabbit --> INC
+        INC --> Rabbit
+        Rabbit --> NOTIF
+
+        MON -->|"gRPC"| PROBES
+        INC -->|"gRPC"| US
+
+        MON --> Redis
+        INC --> Redis
+        NOTIF --> Redis
+
+        US_DB --> Postgres
+        MON_DB --> Postgres
+        INC_DB --> Postgres
+        NOTIF_DB --> Postgres
+    end
+
+    subgraph External["🌍 External Systems"]
+
+        Sites["🌐 Monitored Websites"]
+
+        Providers["📱 Telegram<br/>📧 Email<br/>📲 SMS"]
+
+    end
+
+    Nginx --> US
+    Nginx --> MON
+    Nginx --> INC
+    Nginx --> NOTIF
+
+    PROBES --> Sites
+
+    NOTIF --> Providers
+```
