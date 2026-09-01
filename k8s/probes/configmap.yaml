@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: probes-config
+  namespace: uptime-monitor
+data:
+  PROBE_GRPC_PORT: "50052"

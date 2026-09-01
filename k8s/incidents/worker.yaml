@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: incidents-worker
+  namespace: uptime-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: incidents-worker
+  template:
+    metadata:
+      labels:
+        app: incidents-worker
+    spec:
+      containers:
+        - name: incidents-worker
+          image: uptimemonitor-incidents_web:latest
+          imagePullPolicy: Never
+
+          command:
+            - celery
+            - -A
+            - config
+            - worker
+            - --loglevel=info
+            - -P
+            - solo
+
+          envFrom:
+            - configMapRef:
+                name: common-config
+            - secretRef:
+                name: common-secret
+            - configMapRef:
+                name: incidents-config
+            - secretRef:
+                name: incidents-secret

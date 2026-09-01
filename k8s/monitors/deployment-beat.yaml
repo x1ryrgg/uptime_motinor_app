@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitors-beat
+  namespace: uptime-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitors-beat
+  template:
+    metadata:
+      labels:
+        app: monitors-beat
+    spec:
+      containers:
+        - name: monitors-beat
+          image: uptimemonitor-monitors_web:latest
+          imagePullPolicy: Never
+
+          command:
+            - celery
+            - -A
+            - config
+            - beat
+            - --loglevel=info
+
+          envFrom:
+            - configMapRef:
+                name: common-config
+            - secretRef:
+                name: common-secret
+            - configMapRef:
+                name: monitors-config
+            - secretRef:
+                name: monitors-secret

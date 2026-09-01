@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: common-config
+  namespace: uptime-monitor
+data:
+  DB_HOST: "postgres"
+  DB_USER: "postgres"
+  DB_PORT: "5432"
+
+  CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672//"
+  CELERY_RESULT_BACKEND: "redis://redis:6379/0"
+
+  REDIS_CACHE_URL: "redis://redis:6379/1"
+
+  DEBUG: "True"

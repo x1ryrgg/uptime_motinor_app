@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: notifications-migration
+  namespace: uptime-monitor
+spec:
+  backoffLimit: 3
+
+  template:
+    metadata:
+      labels:
+        app: notifications-migration
+
+    spec:
+      restartPolicy: OnFailure
+
+      containers:
+        - name: migration
+          image: uptimemonitor-notifications_web:latest
+          imagePullPolicy: Never
+
+          command:
+            - python
+            - manage.py
+            - migrate
+            - --noinput
+
+          envFrom:
+            - configMapRef:
+                name: common-config
+            - secretRef:
+                name: common-secret
+            - configMapRef:
+                name: notifications-config
+            - secretRef:
+                name: notifications-secret

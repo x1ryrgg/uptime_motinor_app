@@ -24,6 +24,7 @@ dependencies = [
     "certifi (>=2026.7.22,<2027.0.0)",
     "shared-logging",
     "django-prometheus (>=2.5.0,<3.0.0)",
+    "gunicorn (>=23.0.0,<24.0.0)",
 ]
 
 [tool.poetry.dependencies]

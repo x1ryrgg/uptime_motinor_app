@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: monitors-migration
+  namespace: uptime-monitor
+spec:
+  backoffLimit: 3
+
+  template:
+    metadata:
+      labels:
+        app: monitors-migration
+
+    spec:
+      restartPolicy: OnFailure
+
+      containers:
+        - name: migration
+          image: uptimemonitor-monitors_web:latest
+          imagePullPolicy: Never
+
+          command:
+            - python
+            - manage.py
+            - migrate
+            - --noinput
+
+          envFrom:
+            - configMapRef:
+                name: common-config
+            - secretRef:
+                name: common-secret
+            - configMapRef:
+                name: monitors-config
+            - secretRef:
+                name: monitors-secret

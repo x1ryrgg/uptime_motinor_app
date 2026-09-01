@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: probes
+  namespace: uptime-monitor
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: probes
+
+  template:
+    metadata:
+      labels:
+        app: probes
+
+    spec:
+      containers:
+        - name: probes
+          image: uptimemonitor-probes_grpc:latest
+          imagePullPolicy: Never
+
+          command:
+            - python
+            - grpc_server.py
+
+          ports:
+            - name: grpc
+              containerPort: 50052
+
+          envFrom:
+            - configMapRef:
+                name: probes-config
+
+          env:
+            - name: PROBE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 10
+            periodSeconds: 10

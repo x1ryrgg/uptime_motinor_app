@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitors-worker
+  namespace: uptime-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitors-worker
+  template:
+    metadata:
+      labels:
+        app: monitors-worker
+    spec:
+      containers:
+        - name: monitors-worker
+          image: uptimemonitor-monitors_web:latest
+          imagePullPolicy: Never
+
+          command:
+            - celery
+            - -A
+            - config
+            - worker
+            - --loglevel=info
+
+          envFrom:
+            - configMapRef:
+                name: common-config
+            - secretRef:
+                name: common-secret
+            - configMapRef:
+                name: monitors-config
+            - secretRef:
+                name: monitors-secret

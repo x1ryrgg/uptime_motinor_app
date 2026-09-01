@@ -23,6 +23,7 @@ dependencies = [
     "requests (>=2.34.2,<3.0.0)",
     "shared-logging",
     "django-prometheus (>=2.5.0,<3.0.0)",
+    "gunicorn (>=23.0.0,<24.0.0)",
 ]
 
 [tool.poetry.dependencies]

@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-support-grpc
+  namespace: uptime-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-support-grpc
+  template:
+    metadata:
+      labels:
+        app: user-support-grpc
+    spec:
+      containers:
+        - name: user-support-grpc
+          image: uptimemonitor-user_support_grpc:latest
+          imagePullPolicy: Never
+
+          command:
+            - python
+            - grpc_server.py
+
+          ports:
+            - name: grpc
+              containerPort: 50051
+
+          envFrom:
+            - configMapRef:
+                name: common-config
+            - secretRef:
+                name: common-secret
+            - configMapRef:
+                name: user-support-config
+            - secretRef:
+                name: user-support-secret
+
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 15
+            periodSeconds: 20
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-support-grpc
+  namespace: uptime-monitor
+spec:
+  selector:
+    app: user-support-grpc
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: grpc

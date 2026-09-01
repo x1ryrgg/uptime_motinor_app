@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: probes-grpc
+  namespace: uptime-monitor
+spec:
+  selector:
+    app: probes
+
+  ports:
+    - name: grpc
+      port: 50052
+      targetPort: 50052
+
+  type: ClusterIP
