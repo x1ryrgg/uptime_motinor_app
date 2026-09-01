@@ -202,76 +202,56 @@ uptimemonitor/
 ```mermaid
 flowchart TB
 
-    Client["🌐 Client<br/>SPA / Mobile / Postman"]
+    Internet["🌍 Browser / Client"]
 
-    Nginx["🔀 Nginx / Ingress"]
+    Ingress["🔀 Nginx Ingress"]
 
-    Client --> Nginx
+    Internet --> Ingress
 
-    subgraph Kubernetes["☸️ Kubernetes Cluster"]
+    subgraph K8S["☸️ uptime-monitor namespace"]
 
-        subgraph Services["Microservices"]
+        US["user-support-web<br/>Deployment"]
+        USG["user-support-grpc<br/>Deployment"]
 
-            US["👤 user_support<br/>HTTP :8000<br/>gRPC :50051"]
+        MON["monitors-web<br/>Deployment"]
+        MONW["monitors-worker<br/>Deployment"]
+        MONB["monitors-beat<br/>Deployment"]
 
-            MON["📊 monitors<br/>HTTP :8000"]
+        PROBES["probes<br/>Deployment"]
 
-            PROBES["🔎 probes<br/>gRPC :50052"]
+        INC["incidents-web<br/>Deployment"]
+        INCW["incidents-worker<br/>Deployment"]
 
-            INC["🚨 incidents<br/>HTTP :8000"]
+        NOT["notifications-web<br/>Deployment"]
+        NOTW["notifications-worker<br/>Deployment"]
 
-            NOTIF["📨 notifications<br/>HTTP :8000"]
+        Rabbit["RabbitMQ<br/>Deployment + Service"]
+        Redis["Redis<br/>Deployment + Service"]
 
-        end
+        PG["PostgreSQL<br/>Deployment + PVC"]
 
-        Rabbit["🐇 RabbitMQ<br/>:5672"]
+        Ingress --> US
+        Ingress --> MON
+        Ingress --> INC
+        Ingress --> NOT
 
-        Redis["🔴 Redis<br/>:6379"]
+        MONW --> PROBES
+        MONB --> MONW
 
-        Postgres["🐘 PostgreSQL<br/>:5432"]
+        MONW --> Rabbit
+        Rabbit --> INCW
+        INCW --> Rabbit
+        Rabbit --> NOTW
 
-        US_DB[("uptimer_users")]
-        MON_DB[("uptimer_monitors")]
-        INC_DB[("uptimer_incidents")]
-        NOTIF_DB[("uptimer_notifications")]
+        INCW --> USG
 
-        US --> US_DB
-        MON --> MON_DB
-        INC --> INC_DB
-        NOTIF --> NOTIF_DB
+        MONW --> Redis
+        INCW --> Redis
+        NOTW --> Redis
 
-        MON --> Rabbit
-        Rabbit --> INC
-        INC --> Rabbit
-        Rabbit --> NOTIF
-
-        MON -->|"gRPC"| PROBES
-        INC -->|"gRPC"| US
-
-        MON --> Redis
-        INC --> Redis
-        NOTIF --> Redis
-
-        US_DB --> Postgres
-        MON_DB --> Postgres
-        INC_DB --> Postgres
-        NOTIF_DB --> Postgres
+        US --> PG
+        MON --> PG
+        INC --> PG
+        NOT --> PG
     end
-
-    subgraph External["🌍 External Systems"]
-
-        Sites["🌐 Monitored Websites"]
-
-        Providers["📱 Telegram<br/>📧 Email<br/>📲 SMS"]
-
-    end
-
-    Nginx --> US
-    Nginx --> MON
-    Nginx --> INC
-    Nginx --> NOTIF
-
-    PROBES --> Sites
-
-    NOTIF --> Providers
 ```
