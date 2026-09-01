@@ -1,24 +1,25 @@
-# 🚀 UptimeMonitor
+# UptimeMonitor
 
 **UptimeMonitor** — асинхронная микросервисная платформа для непрерывного мониторинга доступности веб-ресурсов (HTTP/HTTPS) с автоматической регистрацией инцидентов и мгновенным уведомлением пользователей через Telegram, Email и SMS.
 
 ---
 
-## 🛠 Технологический стек
+##  Технологический стек
 
 * **Language:** Python 3.13
 * **Frameworks & Core:** Django, Django REST Framework, gRPC (Protobuf)
 * **Dependency Management:** Poetry
 * **Async & Task Management:** Celery, Celery Beat
 * **Message Broker:** RabbitMQ
-* **Databases & Cache:** PostgreSQL (отдельная БД для каждого сервиса), Redis
+* **Databases & Cache:** PostgreSQL, Redis
 * **Auth:** JWT (JSON Web Tokens), OAuth 
-* **Observability & Logging:** Prometheus, Grafana, Grafana Loki, Promtail,
-* **DevOps & Containerization:** Docker, Docker Compose
+* **Observability & Logging:** Prometheus, Grafana, Grafana Loki, Promtail
+* **Reverse Proxy:** Nginx
+* **DevOps & Containerization:** Docker, Docker Compose, Kubernetes 
 
 ---
 
-## 🏗 Архитектура и микросервисы
+## Архитектура и микросервисы
 
 Проект построен по принципам событийно-ориентированной микросервисной архитектуры (EDA) с полным разделением баз данных (**Database per Service**).
 
@@ -149,7 +150,7 @@ graph TD
 
 ---
 
-## 🔄 Основной бизнес-процесс (Flow данных)
+## Основной бизнес-процесс (Flow данных)
 
 1. **Инициализация:** Celery Beat внутри сервиса `monitors` по расписанию триггерит проверку списка сайтов.
 2. **Делегирование проверки (gRPC):** Воркер monitors передает параметры проверки асинхронному сервису probes по gRPC.
@@ -199,59 +200,102 @@ uptimemonitor/
 └── README.md
 ```
 
+## ☸️ Kubernetes
+
+Проект полностью разворачивается в Kubernetes.
+
+Внутри Kubernetes сервисы общаются через DNS-имена Kubernetes.
+
+Например:
+
+```
+postgres:5432
+redis:6379
+rabbitmq:5672
+
+user-support-grpc:50051
+probes-grpc:50052
+
+HTTP-сервисы:
+user-support-web:8000
+monitors:8000
+incidents-web:8000
+notifications:8000
+```
+
 ```mermaid
 flowchart TB
 
-    Internet["🌍 Browser / Client"]
+    Client["🌐 Client<br/>SPA / Mobile / Postman"]
 
-    Ingress["🔀 Nginx Ingress"]
+    Nginx["🔀 Nginx / Ingress"]
 
-    Internet --> Ingress
+    Client --> Nginx
 
-    subgraph K8S["☸️ uptime-monitor namespace"]
+    subgraph Kubernetes["☸️ Kubernetes Cluster"]
 
-        US["user-support-web<br/>Deployment"]
-        USG["user-support-grpc<br/>Deployment"]
+        subgraph Services["Microservices"]
 
-        MON["monitors-web<br/>Deployment"]
-        MONW["monitors-worker<br/>Deployment"]
-        MONB["monitors-beat<br/>Deployment"]
+            US["user_support<br/>HTTP :8000<br/>gRPC :50051"]
 
-        PROBES["probes<br/>Deployment"]
+            MON["monitors<br/>HTTP :8000"]
 
-        INC["incidents-web<br/>Deployment"]
-        INCW["incidents-worker<br/>Deployment"]
+            PROBES["probes<br/>gRPC :50052"]
 
-        NOT["notifications-web<br/>Deployment"]
-        NOTW["notifications-worker<br/>Deployment"]
+            INC["incidents<br/>HTTP :8000"]
 
-        Rabbit["RabbitMQ<br/>Deployment + Service"]
-        Redis["Redis<br/>Deployment + Service"]
+            NOTIF["notifications<br/>HTTP :8000"]
 
-        PG["PostgreSQL<br/>Deployment + PVC"]
+        end
 
-        Ingress --> US
-        Ingress --> MON
-        Ingress --> INC
-        Ingress --> NOT
+        Rabbit["RabbitMQ<br/>:5672"]
 
-        MONW --> PROBES
-        MONB --> MONW
+        Redis["Redis<br/>:6379"]
 
-        MONW --> Rabbit
-        Rabbit --> INCW
-        INCW --> Rabbit
-        Rabbit --> NOTW
+        Postgres["PostgreSQL<br/>:5432"]
 
-        INCW --> USG
+        US_DB[("uptimer_users")]
+        MON_DB[("uptimer_monitors")]
+        INC_DB[("uptimer_incidents")]
+        NOTIF_DB[("uptimer_notifications")]
 
-        MONW --> Redis
-        INCW --> Redis
-        NOTW --> Redis
+        US --> US_DB
+        MON --> MON_DB
+        INC --> INC_DB
+        NOTIF --> NOTIF_DB
 
-        US --> PG
-        MON --> PG
-        INC --> PG
-        NOT --> PG
+        MON --> Rabbit
+        Rabbit --> INC
+        INC --> Rabbit
+        Rabbit --> NOTIF
+
+        MON -->|"gRPC"| PROBES
+        INC -->|"gRPC"| US
+
+        MON --> Redis
+        INC --> Redis
+        NOTIF --> Redis
+
+        US_DB --> Postgres
+        MON_DB --> Postgres
+        INC_DB --> Postgres
+        NOTIF_DB --> Postgres
     end
+
+    subgraph External["🌍 External Systems"]
+
+        Sites["🌐 Monitored Websites"]
+
+        Providers["📱 Telegram<br/>📧 Email<br/>📲 SMS"]
+
+    end
+
+    Nginx --> US
+    Nginx --> MON
+    Nginx --> INC
+    Nginx --> NOTIF
+
+    PROBES --> Sites
+
+    NOTIF --> Providers
 ```
