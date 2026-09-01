@@ -197,7 +197,7 @@ uptimemonitor/
 ├── init-multiple-dbs.sql   # Скрипт инициализации независимых БД в PostgreSQL
 ├── docker-compose.yml      # Локальный запуск всего окружения
 └── README.md
-
+```
 
 ```mermaid
 flowchart TB
