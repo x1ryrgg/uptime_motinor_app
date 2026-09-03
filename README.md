@@ -19,6 +19,14 @@
 
 ---
 
+## ☸️ Deploy 
+
+Проект полностью разворачивается и оркестрируется Kubernetes.
+
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) **— Документация по полному деплою через kubernetes или docker compose**
+
+---
+
 ## Архитектура и микросервисы
 
 Проект построен по принципам событийно-ориентированной микросервисной архитектуры (EDA) с полным разделением баз данных (**Database per Service**).
@@ -194,8 +202,6 @@ graph TD
 
 ## Основной бизнес-процесс (Flow данных)
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) **— Полная архитектура системы.**
-
 1. **Инициализация:** Celery Beat внутри сервиса `monitors` по расписанию триггерит проверку списка сайтов.
 2. **Делегирование проверки (gRPC):** Воркер monitors передает параметры проверки асинхронному сервису probes по gRPC.
 3. **Пинг:** Рабочие воркеры совершают HTTP-запросы к целевым ресурсам и фиксируют метрики (`latency`, `status code`, `availability`).
@@ -257,106 +263,4 @@ uptimemonitor/
 ├── init-multiple-dbs.sql   # Скрипт инициализации независимых БД в PostgreSQL
 ├── docker-compose.yml      # Локальный запуск всего окружения
 └── README.md
-```
-
-## ☸️ Kubernetes
-
-Проект полностью разворачивается в Kubernetes.
-
-- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) **— Полный путь деплоя через kubernetes или docker compose**
-
-Внутри Kubernetes сервисы общаются через DNS-имена Kubernetes.
-
-Например:
-
-```
-postgres:5432
-redis:6379
-rabbitmq:5672
-
-user-support-grpc:50051
-probes-grpc:50052
-
-HTTP-сервисы:
-user-support-web:8000
-monitors:8000
-incidents-web:8000
-notifications:8000
-```
-
-```mermaid
-flowchart TB
-
-    Client["🌐 Client<br/>SPA / Mobile / Postman"]
-
-    Nginx["🔀 Nginx / Ingress"]
-
-    Client --> Nginx
-
-    subgraph Kubernetes["☸️ Kubernetes Cluster"]
-
-        subgraph Services["Microservices"]
-
-            US["user_support<br/>HTTP :8000<br/>gRPC :50051"]
-
-            MON["monitors<br/>HTTP :8000"]
-
-            PROBES["probes<br/>gRPC :50052"]
-
-            INC["incidents<br/>HTTP :8000"]
-
-            NOTIF["notifications<br/>HTTP :8000"]
-
-        end
-
-        Rabbit["RabbitMQ<br/>:5672"]
-
-        Redis["Redis<br/>:6379"]
-
-        Postgres["PostgreSQL<br/>:5432"]
-
-        US_DB[("uptimer_users")]
-        MON_DB[("uptimer_monitors")]
-        INC_DB[("uptimer_incidents")]
-        NOTIF_DB[("uptimer_notifications")]
-
-        US --> US_DB
-        MON --> MON_DB
-        INC --> INC_DB
-        NOTIF --> NOTIF_DB
-
-        MON --> Rabbit
-        Rabbit --> INC
-        INC --> Rabbit
-        Rabbit --> NOTIF
-
-        MON -->|"gRPC"| PROBES
-        INC -->|"gRPC"| US
-
-        MON --> Redis
-        INC --> Redis
-        NOTIF --> Redis
-
-        US_DB --> Postgres
-        MON_DB --> Postgres
-        INC_DB --> Postgres
-        NOTIF_DB --> Postgres
-    end
-
-    subgraph External["🌍 External Systems"]
-
-        Sites["🌐 Monitored Websites"]
-
-        Providers["📱 Telegram<br/>📧 Email<br/>📲 SMS"]
-
-    end
-
-    Nginx --> US
-    Nginx --> MON
-    Nginx --> INC
-    Nginx --> NOTIF
-
-    PROBES --> Sites
-
-    NOTIF --> Providers
 ```
