@@ -26,99 +26,141 @@
 ```mermaid
 graph TD
     classDef clientStyle fill:#0d0e12,stroke:#4a5568,stroke-width:2px,color:#f8fafc;
+    classDef proxyStyle fill:#172554,stroke:#2563eb,stroke-width:2px,color:#f8fafc;
     classDef serviceStyle fill:#16192b,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
     classDef probeStyle fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
     classDef dbStyle fill:#0f172a,stroke:#0ea5e9,stroke-width:2px,color:#f8fafc;
     classDef brokerStyle fill:#1e1029,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
     classDef obsStyle fill:#2e1065,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
+    classDef externalStyle fill:#1c1917,stroke:#f59e0b,stroke-width:2px,color:#f8fafc;
 
     subgraph ClientLayer ["Client / External API"]
-        Client["SPA / Mobile / Postman<br/>(JWT Authentication / OAuth)"]:::clientStyle
+        Client["SPA / Mobile / Postman<br/>HTTP / HTTPS"]:::clientStyle
     end
 
-    subgraph Microservices ["Microservices Layer"]
-        subgraph UserSupportGroup ["user_support"]
-            US_WEB["user_support_web<br/>:8001 (Auth & Users)"]:::serviceStyle
-            US_GRPC["user_support_grpc<br/>:50051 (gRPC Server)"]:::serviceStyle
+    subgraph Kubernetes ["Kubernetes — uptime-monitor namespace"]
+
+        subgraph Gateway ["Ingress / Reverse Proxy"]
+            Nginx["Nginx<br/>Reverse Proxy<br/>HTTP :80"]:::proxyStyle
         end
 
-        subgraph MonitorsGroup ["monitors"]
-            M_WEB["monitors_web<br/>:8002 (CRUD Monitors)"]:::serviceStyle
-            M_BEAT["monitors_beat<br/>(Periodic Schedule)"]:::serviceStyle
-            M_WORKER["monitors_worker<br/>(Check Orchestrator)"]:::serviceStyle
+        subgraph Microservices ["Microservices"]
+
+            subgraph UserSupportGroup ["user_support"]
+                US_WEB["user_support_web<br/>:8000<br/>(Auth & Users)"]:::serviceStyle
+                US_GRPC["user_support_grpc<br/>:50051<br/>(gRPC Server)"]:::serviceStyle
+            end
+
+            subgraph MonitorsGroup ["monitors"]
+                M_WEB["monitors_web<br/>:8000<br/>(CRUD Monitors)"]:::serviceStyle
+                M_BEAT["monitors_beat<br/>(Periodic Schedule)"]:::serviceStyle
+                M_WORKER["monitors_worker<br/>(Check Orchestrator)"]:::serviceStyle
+            end
+
+            subgraph ProbesGroup ["probes"]
+                P_GRPC["probes_grpc<br/>:50052<br/>(Async gRPC Agent)"]:::probeStyle
+            end
+
+            subgraph IncidentsGroup ["incidents"]
+                INC_WEB["incidents_web<br/>:8000<br/>(Incidents API)"]:::serviceStyle
+                INC_WORKER["incidents_worker<br/>(Incident Consumer)"]:::serviceStyle
+            end
+
+            subgraph NotificationsGroup ["notifications"]
+                NOTIF_WEB["notifications_web<br/>:8000<br/>(History API)"]:::serviceStyle
+                NOTIF_WORKER["notifications_worker<br/>(Notification Sender)"]:::serviceStyle
+            end
         end
 
-        subgraph ProbesGroup ["probes"]
-            P_GRPC["probes_grpc<br/>:50052 (Async gRPC Agent)"]:::probeStyle
+        subgraph EventBackbone ["Message Broker & Cache"]
+            RabbitMQ[("RabbitMQ<br/>:5672<br/>AMQP")]:::brokerStyle
+            Redis[("Redis<br/>:6379<br/>Celery / Cache")]:::brokerStyle
         end
 
-        subgraph IncidentsGroup ["incidents"]
-            INC_WEB["incidents_web<br/>:8003 (Incidents API)"]:::serviceStyle
-            INC_WORKER["incidents_worker<br/>(Incident Consumer)"]:::serviceStyle
+        subgraph Persistence ["PostgreSQL"]
+            PostgreSQL[("PostgreSQL<br/>:5432")]:::dbStyle
+            DB_USERS[("uptimer_users")]:::dbStyle
+            DB_MONITORS[("uptimer_monitors")]:::dbStyle
+            DB_INCIDENTS[("uptimer_incidents")]:::dbStyle
+            DB_NOTIFICATIONS[("uptimer_notifications")]:::dbStyle
         end
 
-        subgraph NotificationsGroup ["notifications"]
-            NOTIF_WEB["notifications_web<br/>:8004 (History API)"]:::serviceStyle
-            NOTIF_WORKER["notifications_worker<br/>(Email/TG/SMS Sender)"]:::serviceStyle
+        subgraph Observability ["Observability"]
+            Prometheus[("Prometheus<br/>:9090")]:::obsStyle
+            Loki[("Grafana Loki<br/>:3100")]:::obsStyle
+            Grafana["Grafana<br/>:3000"]:::obsStyle
+            Promtail["Promtail<br/>(Container Logs)"]:::obsStyle
         end
     end
 
-    subgraph ObservabilityLayer ["Observability & Monitoring"]
-        Prometheus[("Prometheus<br/>:9090 (Metrics Scraper)")]:::obsStyle
-        Promtail["Promtail<br/>(Docker Log Collector)"]:::obsStyle
-        Loki[("Grafana Loki<br/>:3100 (Log Aggregator)")]:::obsStyle
-        Grafana["Grafana<br/>:3000 (Dashboards & Visuals)"]:::obsStyle
+    subgraph External ["External Resources"]
+        TargetSites[("Monitored<br/>HTTP / HTTPS Resources")]:::externalStyle
+        Providers[("Telegram / Email / SMS")]:::externalStyle
     end
 
-    subgraph EventBackbone ["Message Broker & Cache"]
-        RabbitMQ[("RabbitMQ<br/>:5672 / :15672<br/>(Exchanges & Queues)")]:::brokerStyle
-        Redis[("Redis<br/>:6379<br/>(Celery Backend / Cache)")]:::brokerStyle
-    end
 
-    subgraph Persistence ["Persistence Layer (PostgreSQL Container :5432)"]
-        DB_USERS[("DB: uptimer_users")]:::dbStyle
-        DB_MONITORS[("DB: uptimer_monitors")]:::dbStyle
-        DB_INCIDENTS[("DB: uptimer_incidents")]:::dbStyle
-        DB_NOTIFICATIONS[("DB: uptimer_notifications")]:::dbStyle
-    end
+    %% Client -> Nginx
+    Client -->|"HTTP / HTTPS"| Nginx
 
-    Client -->|"1. Auth / Login (JWT)"| US_WEB
-    Client -->|"2. Create Monitors / Rules"| M_WEB
-    Client -->|"View Incidents"| INC_WEB
+    %% Nginx -> Django services
+    Nginx -->|"user-support.localhost"| US_WEB
+    Nginx -->|"monitors.localhost"| M_WEB
+    Nginx -->|"incidents.localhost"| INC_WEB
+    Nginx -->|"notifications.localhost"| NOTIF_WEB
 
+    %% Databases
     US_WEB --- DB_USERS
     US_GRPC --- DB_USERS
+
     M_WEB --- DB_MONITORS
     M_WORKER --- DB_MONITORS
-    INC_WORKER --- DB_INCIDENTS
+
     INC_WEB --- DB_INCIDENTS
-    NOTIF_WORKER --- DB_NOTIFICATIONS
+    INC_WORKER --- DB_INCIDENTS
+
     NOTIF_WEB --- DB_NOTIFICATIONS
+    NOTIF_WORKER --- DB_NOTIFICATIONS
 
-    M_BEAT -->|"Trigger Checks"| RabbitMQ
-    RabbitMQ -->|"Fetch Task"| M_WORKER
+    DB_USERS --- PostgreSQL
+    DB_MONITORS --- PostgreSQL
+    DB_INCIDENTS --- PostgreSQL
+    DB_NOTIFICATIONS --- PostgreSQL
 
-    M_WORKER ==>|"1. Primary: gRPC Check Request"| P_GRPC
-    P_GRPC -->|"Execute Async HTTP/HTTPS Check"| TargetSites[("External Web Resources")]:::clientStyle
-    P_GRPC ==>|"Return Response Metrics"| M_WORKER
-    M_WORKER -. "2. Fallback: Local HTTP Check (If Probes Down)" .-> TargetSites
+    %% Celery / RabbitMQ
+    M_BEAT -->|"Periodic Tasks"| RabbitMQ
+    RabbitMQ -->|"Tasks"| M_WORKER
 
-    M_WORKER -->|"Publish Failure/Recovery Event"| RabbitMQ
+    %% Monitors -> Probes
+    M_WORKER ==>|"gRPC Check Request"| P_GRPC
+    P_GRPC -->|"HTTP / HTTPS Check"| TargetSites
+    P_GRPC ==>|"Check Result"| M_WORKER
+
+    %% Fallback
+    M_WORKER -.->|"Fallback HTTP Check"| TargetSites
+
+    %% Events
+    M_WORKER -->|"Failure / Recovery Event"| RabbitMQ
     RabbitMQ -->|"incidents_queue"| INC_WORKER
-    INC_WORKER -->|"Publish Notification Event"| RabbitMQ
+
+    INC_WORKER ==>|"gRPC: Get User Contacts"| US_GRPC
+
+    INC_WORKER -->|"Notification Event"| RabbitMQ
     RabbitMQ -->|"notifications_queue"| NOTIF_WORKER
 
-    INC_WORKER ==>|"gRPC: Get User Contacts<br/>(User Support Proto)"| US_GRPC
-    NOTIF_WORKER -->|"Send Alert"| External[("External Providers<br/>Telegram / Email / SMS")]:::clientStyle
+    NOTIF_WORKER -->|"Send Alert"| Providers
 
-    %% Observability Connections
+    %% Redis
+    M_WORKER --- Redis
+    INC_WORKER --- Redis
+    NOTIF_WORKER --- Redis
+
+    %% Observability
     Prometheus -->|"Scrape /metrics"| US_WEB
     Prometheus -->|"Scrape /metrics"| M_WEB
     Prometheus -->|"Scrape /metrics"| INC_WEB
     Prometheus -->|"Scrape /metrics"| NOTIF_WEB
 
-    Promtail -. "Read stdout/stderr (Docker Socket)" .-> US_WEB
-    Promtail -->|"Push Logs"| Loki
+    Promtail -.->|"Collect stdout / stderr"| Loki
     Grafana -->|"Query Metrics"| Prometheus
     Grafana -->|"Query Logs"| Loki
 ```
@@ -151,6 +193,8 @@ graph TD
 ---
 
 ## Основной бизнес-процесс (Flow данных)
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) **— Полная архитектура системы.**
 
 1. **Инициализация:** Celery Beat внутри сервиса `monitors` по расписанию триггерит проверку списка сайтов.
 2. **Делегирование проверки (gRPC):** Воркер monitors передает параметры проверки асинхронному сервису probes по gRPC.
@@ -218,6 +262,8 @@ uptimemonitor/
 ## ☸️ Kubernetes
 
 Проект полностью разворачивается в Kubernetes.
+
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) **— Полный путь деплоя через kubernetes или docker compose**
 
 Внутри Kubernetes сервисы общаются через DNS-имена Kubernetes.
 
