@@ -169,6 +169,21 @@ graph TD
 uptimemonitor/
 ├── shared/                 # Общие собственные пакеты для всех сервисов
 │   └── user_support.proto  # Пакет, содержащий общее логирование и middleware 
+├── k8s/
+│   ├── namespace.yaml      # Основа проекта, нода
+│   └──config/
+│      ├── common-configmap.yaml      # Общая конфигурация приложения
+│      ├── common-secret.yaml      # Общие настройки чувствительных данных
+│      ├── user-support-configmap.yaml      
+│      ├── user-support-secret.yaml      
+│      ├── monitors-configmap.yaml      
+│      ├── monitors-secret.yaml     
+│      └── ...
+│    ├── postgres/  
+│    ├── rabbitmq/     
+│    ├── redis/      
+│    ├── probes/      
+│    └── ...
 ├── protos/                 # Общие Protobuf-контракты (.proto) для всех сервисов
 │   ├── user_support.proto
 │   └── probes.proto
