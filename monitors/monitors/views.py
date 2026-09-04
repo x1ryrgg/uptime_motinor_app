@@ -14,10 +14,19 @@ from django.db.models import Prefetch
 from .services import execute_monitor_check
 from .tasks import run_single_monitor_task
 from .throttling import BurstManualCheckThrottle, DailyManualCheckThrottle
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiResponse,
+    extend_schema,
+)
 
 
 logger = get_logger(__name__)
 
+
+@extend_schema(
+    tags=["Monitors"],
+)
 class MonitorViewSet(ModelViewSet):
     """CRUD для работы с мониторингом пользователя"""
 
@@ -42,6 +51,54 @@ class MonitorViewSet(ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user_id=self.request.user.id)
 
+    @extend_schema(
+        summary="Get monitor check history",
+        description=(
+                "Returns the check history for the specified monitor.\n\n"
+                "Only monitors belonging to the currently authenticated "
+                "user can be accessed.\n\n"
+                "The endpoint returns up to 100 check results."
+        ),
+        responses={
+            200: OpenApiResponse(
+                response=CheckResultSerializer(many=True),
+                description="Monitor check history.",
+            ),
+            401: OpenApiResponse(
+                description=(
+                        "Authentication credentials were not provided "
+                        "or are invalid."
+                ),
+            ),
+            404: OpenApiResponse(
+                description="Monitor was not found.",
+            ),
+        },
+        examples=[
+            OpenApiExample(
+                "Check history",
+                summary="Example monitor history",
+                value=[
+                    {
+                        "id": 101,
+                        "status_code": 200,
+                        "response_time_ms": 143,
+                        "is_success": True,
+                        "checked_at": "2026-09-04T12:30:00Z",
+                    },
+                    {
+                        "id": 100,
+                        "status_code": 500,
+                        "response_time_ms": 821,
+                        "is_success": False,
+                        "checked_at": "2026-09-04T12:29:00Z",
+                    },
+                ],
+                response_only=True,
+                status_codes=["200"],
+            ),
+        ],
+    )
     @action(detail=True, methods=["get"], url_path="history")
     def history(self, request, pk=None):
         """
@@ -54,6 +111,50 @@ class MonitorViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    summary="Run monitor check manually",
+    description=(
+        "Starts a manual check for the specified monitor.\n\n"
+        "The check is executed asynchronously by a background task. "
+        "The endpoint returns immediately after the task has been "
+        "successfully queued.\n\n"
+        "A user can only manually check monitors belonging to their "
+        "own account.\n\n"
+        "The endpoint is protected by burst and daily rate limits."
+    ),
+    request=None,
+    responses={
+        202: OpenApiResponse(
+            description="Monitor check successfully queued.",
+        ),
+        401: OpenApiResponse(
+            description=(
+                "Authentication credentials were not provided "
+                "or are invalid."
+            ),
+        ),
+        404: OpenApiResponse(
+            description="Monitor was not found.",
+        ),
+        429: OpenApiResponse(
+            description=(
+                "Rate limit exceeded. The user has reached either "
+                "the burst or daily limit for manual checks."
+            ),
+        ),
+    },
+    examples=[
+        OpenApiExample(
+            "Successful manual check",
+            summary="Check queued",
+            value={
+                "detail": "Success check manually {monitor.name}"
+            },
+            response_only=True,
+            status_codes=["202"],
+        ),
+    ],
+)
 class ManualCheckView(APIView):
     """
     Ручная проверка монитора.
@@ -75,6 +176,6 @@ class ManualCheckView(APIView):
         )
         
         return Response(
-            {"detail": f"Ручная проверка монитора #{monitor.pk} запущена."},
+            {"detail": f"Success check manually {monitor.name}"},
             status=status.HTTP_202_ACCEPTED,
         )

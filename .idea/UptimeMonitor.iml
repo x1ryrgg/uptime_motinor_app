@@ -20,7 +20,7 @@
     <content url="file://$MODULE_DIR$/monitors/.venv/Scripts" />
     <content url="file://$MODULE_DIR$/notifications/.venv/Scripts" />
     <content url="file://$MODULE_DIR$/user_support/.venv/Scripts" />
-    <orderEntry type="jdk" jdkName="monitors" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="incidents" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

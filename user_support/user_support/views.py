@@ -12,14 +12,135 @@ from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, ListAP
 from .models import User, UserSettings
 from .permissions import IsSuperUser
 from .serializers import UserSerializer, PersonalUserSerializer, LoginCodeSerializer, UserListSerializer
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiResponse,
+    extend_schema,
+)
 
 
+@extend_schema(
+    summary="Register a new user",
+    description=(
+        "Создает новую учетную запись пользователя.\n\n"
+        "Поля `password` и `confirm_password` должны содержать "
+        "одно и то же значение. После успешной регистрации "
+        "автоматически создаются настройки пользователя по умолчанию."
+    ),
+    request=UserSerializer,
+    responses={
+        201: OpenApiResponse(
+            response=UserSerializer,
+            description="User successfully registered.",
+        ),
+        400: OpenApiResponse(
+            description="Invalid registration data.",
+        ),
+    },
+    examples=[
+        OpenApiExample(
+            "Registration request",
+            summary="Create a new user",
+            value={
+                "username": "testuser",
+                "email": "testuser@example.com",
+                "password": "12345678",
+                "confirm_password": "12345678",
+                "first_name": "John",
+                "last_name": "Doe",
+            },
+            request_only=True,
+        ),
+        OpenApiExample(
+            "Registration response",
+            summary="Successfully created user",
+            value={
+                "id": 1,
+                "username": "testuser",
+                "email": "testuser@example.com",
+                "first_name": "John",
+                "last_name": "Doe",
+            },
+            response_only=True,
+            status_codes=["201"],
+        ),
+        OpenApiExample(
+            "Passwords do not match",
+            summary="Password confirmation error",
+            value={
+                "confirm_password": [
+                    "Passwords do not match."
+                ]
+            },
+            response_only=True,
+            status_codes=["400"],
+        ),
+    ],
+)
 class RegisterUserView(CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
 
+@extend_schema(
+    summary="Получить или обновить профиль пользователя.",
+    description=(
+        "Возвращает профиль текущего аутентифицированного пользователя.\n\n"
+        "Конечная точка также позволяет частично обновлять профиль пользователя "
+        "и настройки с помощью метода `PATCH`.\n\n"
+        "Поля `id` и `username` доступны только для чтения."
+    ),
+    responses={
+        200: OpenApiResponse(
+            response=PersonalUserSerializer,
+            description="Current user's profile.",
+        ),
+        401: OpenApiResponse(
+            description="Authentication credentials were not provided "
+            "or are invalid.",
+        ),
+    },
+    examples=[
+        OpenApiExample(
+            "Profile response",
+            summary="Current user profile",
+            value={
+                "id": 1,
+                "username": "testuser",
+                "email": "testuser@example.com",
+                "phone_number": "+37060000000",
+                "telegram_chat_id": "123456789",
+                "first_name": "John",
+                "last_name": "Doe",
+                "settings": {
+                    "id": 1,
+                    "email_notification_enabled": True,
+                    "telegram_notification_enabled": True,
+                    "sms_notification_enabled": False
+                },
+            },
+            response_only=True,
+            status_codes=["200"],
+        ),
+        OpenApiExample(
+            "Update profile",
+            summary="Update user profile",
+            value={
+                "email": "new_email@example.com",
+                "first_name": "John",
+                "last_name": "Smith",
+                "settings": {
+                    "email_notification_enabled": False,
+                    "telegram_notification_enabled": False,
+                    "sms_notification_enabled": True
+                },
+            },
+            request_only=True,
+            status_codes=["200"],
+        )
+    ],
+)
 class ProfileView(RetrieveUpdateAPIView):
     serializer_class = PersonalUserSerializer
     permission_classes = [IsAuthenticated]
@@ -44,6 +165,58 @@ class DeactivateUserView(APIView):
         )
 
 
+@extend_schema(
+    summary="Список пользователей",
+    description=(
+        "Returns a list of all users.\n\n"
+        "This endpoint is available only to authenticated users "
+        "with administrator privileges."
+    ),
+    responses={
+        200: OpenApiResponse(
+            response=UserListSerializer(many=True),
+            description="List of users.",
+        ),
+        401: OpenApiResponse(
+            description="Authentication credentials were not provided "
+            "or are invalid.",
+        ),
+        403: OpenApiResponse(
+            description="The authenticated user does not have "
+            "administrator privileges.",
+        ),
+    },
+    examples=[
+        OpenApiExample(
+            "Users list",
+            summary="Example users response",
+            value=[
+                {
+                    "id": 1,
+                    "username": "admin",
+                    "email": "admin@example.com",
+                    "phone_number": "+37060000000",
+                    "telegram_chat_id": "123456789",
+                    "is_active": True,
+                    "is_superuser": True,
+                    "settings": {},
+                },
+                {
+                    "id": 2,
+                    "username": "testuser",
+                    "email": "testuser@example.com",
+                    "phone_number": "+37061111111",
+                    "telegram_chat_id": "987654321",
+                    "is_active": True,
+                    "is_superuser": False,
+                    "settings": {},
+                },
+            ],
+            response_only=True,
+            status_codes=["200"],
+        ),
+    ],
+)
 class UserListView(ListAPIView):
     serializer_class = UserListSerializer
     permission_classes = [IsAdminUser]
@@ -51,7 +224,85 @@ class UserListView(ListAPIView):
     def get_queryset(self):
         return User.objects.select_related("settings").order_by("is_active")
 
+
 # https://github.com/login/oauth/authorize?client_id=CLIENT_ID&scope=user:email
+@extend_schema(
+    summary="Login with GitHub",
+    description=(
+        "Authenticates a user using a temporary authorization code "
+        "obtained from GitHub OAuth.\n\n"
+        "The endpoint exchanges the provided GitHub authorization code "
+        "for a GitHub access token, retrieves the GitHub user profile, "
+        "creates the local user account if it does not exist, and "
+        "returns SimpleJWT access and refresh tokens.\n\n"
+        "If the GitHub account does not expose a public email address, "
+        "the endpoint attempts to retrieve the user's primary email "
+        "from the GitHub API."
+    ),
+    request=LoginCodeSerializer,
+    responses={
+        200: OpenApiResponse(
+            description="Successfully authenticated with GitHub.",
+        ),
+        400: OpenApiResponse(
+            description=(
+                "Invalid GitHub authorization code, GitHub API error, "
+                "or the local account is deactivated."
+            ),
+        ),
+    },
+    examples=[
+        OpenApiExample(
+            "GitHub login request",
+            summary="Authorization code",
+            description=(
+                "Temporary authorization code received from GitHub "
+                "OAuth authorization flow."
+            ),
+            value={
+                "code": "a1b2c3d4e5f6"
+            },
+            request_only=True,
+        ),
+        OpenApiExample(
+            "Successful login",
+            summary="JWT tokens returned",
+            value={
+                "refresh": (
+                    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                ),
+                "access": (
+                    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                ),
+                "user": {
+                    "id": 1,
+                    "username": "john_doe",
+                    "email": "john@example.com",
+                },
+            },
+            response_only=True,
+            status_codes=["200"],
+        ),
+        OpenApiExample(
+            "Invalid GitHub code",
+            summary="Invalid authorization code",
+            value={
+                "error": "Невалидный код или ошибка на стороне GitHub."
+            },
+            response_only=True,
+            status_codes=["400"],
+        ),
+        OpenApiExample(
+            "Deactivated account",
+            summary="Account is deactivated",
+            value={
+                "detail": "Аккаунт деактивирован."
+            },
+            response_only=True,
+            status_codes=["400"],
+        ),
+    ],
+)
 class GitHubLoginView(APIView):
     serializer_class = LoginCodeSerializer
     permission_classes = [AllowAny]
